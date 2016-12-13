@@ -51,23 +51,14 @@ def saveResults(eventURL, eventname, round):
         print errorresults
         return errorresults
 
-def getAllResults(eventURL):
+def getAllResults(eventURL, eventname):
     htmlFile = urllib.urlopen(eventURL)
     eventURL = htmlFile.geturl()
     rawHTML = htmlFile.read()
     soup = BeautifulSoup(rawHTML)
 
     print eventURL
-    try:
-        #url can be of the form:
-        #http://magic.wizards.com/en/events/coverage/2012pc
-        #or
-        #http://magic.wizards.com/en/articles/archive/event-coverage/us-nationals-1999-reports-2015-12-18
-        #or
-        #some other stuff, need to improve this probably
-        eventname = eventURL.split("coverage/",1)[1]
-    except:
-        eventname = "N/A (Parse Error)"
+
     #modern event page has a section with "by-day" class
     bydays = soup.findAll('div', attrs={"class": "by-day"})
     if (len(bydays) == 0):
@@ -102,10 +93,14 @@ def getAllCoverageEvents():
     htmlFile = urllib.urlopen(coverageURL)
     rawHTML = htmlFile.read()
     soup = BeautifulSoup(rawHTML)
-
-    events = soup.findAll('a', attrs={'class':'more'})
-    for event in events[133:]: #starting at 133, due to failure at Orlando
-        if(event['href'].find("magic.wizards.com") == -1):
-            event['href'] = urlparse.urljoin(htmlFile.geturl(), event['href'])
-        print event['href']
-        getAllResults(event['href'])
+    
+    sections = soup.findAll('div', attrs={'class':'bean_block bean_block_html bean--wiz-content-html-block '})
+    for idx,section in enumerate(sections[1:]):
+        season = section.find('h2')
+        events = section.findAll('a', attrs={'class':'more'})
+        for event in events:
+            if(event['href'].find("magic.wizards.com") == -1):
+                event['href'] = urlparse.urljoin(htmlFile.geturl(), event['href'])
+            eventname = season.text + ": " + event.text
+            print eventname
+        getAllResults(event['href'], eventname)
