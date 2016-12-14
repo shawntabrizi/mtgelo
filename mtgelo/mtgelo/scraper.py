@@ -51,7 +51,10 @@ def saveResults(eventURL, eventname, round):
         print errorresults
         return errorresults
 
-def getAllResults(eventURL, eventname):
+def getAllResults(eventURL, eventtype, eventname):
+    #eventURL = 'http://magic.wizards.com/en/events/coverage/1994wc'
+    if(eventURL.find("magic.wizards.com") == -1):
+        eventURL = urlparse.urljoin('http://magic.wizards.com/en/events/coverage', eventURL)
     htmlFile = urllib.urlopen(eventURL)
     eventURL = htmlFile.geturl()
     rawHTML = htmlFile.read()
@@ -59,23 +62,23 @@ def getAllResults(eventURL, eventname):
 
     print eventURL
 
-    #modern event page has a section with "by-day" class
+    #event page has a section with "by-day" class
     bydays = soup.findAll('div', attrs={"class": "by-day"})
     if (len(bydays) == 0):
         #if it has no "by-day" then look for class "results"... dunno if this works everywhere
         bydays = soup.findAll('div', attrs={"class": "results"})
     for byday in bydays:
-        if byday.find('p', text=re.compile("results", flags=re.IGNORECASE)):
-            resultsURLs = byday.findAll("a")
-            for resultURL in resultsURLs:
-                if(resultURL['href'].find("magic.wizards.com") == -1):
-                    resultURL['href'] = urlparse.urljoin(eventURL, resultURL['href'])
-                print resultURL['href']
+        if byday.find('p', text=re.compile("results", flags=re.ignorecase)):
+            resultsurls = byday.findAll("a")
+            for resulturl in resultsurls:
+                if(resulturl['href'].find("magic.wizards.com") == -1):
+                    resulturl['href'] = urlparse.urljoin(eventurl, resulturl['href'])
+                print resulturl['href']
                 try:
-                    round = re.search('(\d+)', resultURL.text).group(1)
+                    round = re.search('(\d+)', resulturl.text).group(1)
                 except:
-                    round = resultURL.text
-                results = saveResults(resultURL['href'], eventname, round)
+                    round = resulturl.text
+                results = saveresults(resulturl['href'], eventname, round)
                 #print results
                 #some more error handling, like when the page has nothing in it
                 try:
@@ -83,12 +86,115 @@ def getAllResults(eventURL, eventname):
                 except:
                     lengthofresults = 0
                 if(lengthofresults == 11):
-                    playerHistoryToDB(results)
+                    playerhistorytodb(results)
                 else:
-                    errorresults = [[eventname, round, "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)", "N/A (Wrong Size)"]]
-                    playerHistoryToDB(errorresults)
+                    errorresults = [[eventname, round, "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)", "n/a (wrong size)"]]
+                    playerhistorytodb(errorresults)
 
 def getAllCoverageEvents():
+    coverageURL = "http://magic.wizards.com/en/events/coverage"
+    htmlFile = urllib.urlopen(coverageURL)
+    rawHTML = htmlFile.read()
+    soup = BeautifulSoup(rawHTML)
+    
+    sections = soup.findAll('div', attrs={'class':'bean_block bean_block_html bean--wiz-content-html-block '})
+    for loop,section in enumerate(reversed(sections)):
+        season = section.find('h2')
+        print season
+        eventtype=""
+        eventname=""
+        #different patterns to match per season, starting from the first season 1994
+        #1994 Season to 2008 Season, 15 total sections
+        if (loop < 15):
+            eventcontainer = section.find('p')
+            eventsoup = eventcontainer.findAll(['b','a'])
+            for eventelem in eventsoup:
+                if (eventelem.name == 'b'):
+                    eventtype = eventelem.text
+                if (eventelem.name == 'a'):
+                    eventname = eventelem.text
+                    eventurl = eventelem['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+                    
+        #2009 Season
+        elif (loop == 15):
+            eventtypes = section.findAll('p')
+            for eventtypeelem in eventtypes:
+                eventtype = eventtypeelem.find('b').text
+                eventnames = eventtypeelem.findAll('a')
+                for eventnamehtml in eventnames:
+                    eventname = eventnamehtml.text
+                    eventurl = eventnamehtml['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+        #2010 Season
+        elif (loop == 16):
+            eventtypes = section.findAll('p')
+            del eventtypes[1] #there is an empty p tag... whyyyyyy?
+            for eventtypeelem in eventtypes:
+                eventtype = eventtypeelem.find('b').text
+                if (eventtype == 'hampionships'): # missing a C.... WHYYYYY?
+                    eventtype = 'Championships'
+                eventnames = eventtypeelem.findAll('a')
+                for eventnamehtml in eventnames:
+                    eventname = eventnamehtml.text
+                    eventurl = eventnamehtml['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+        #2011 Season to 2012 Season
+        elif (17 <= loop < 19):
+            eventtypes = section.findAll('p')
+            for eventtypeelem in eventtypes:
+                if (eventtypeelem.find('strong')):
+                    eventtype = eventtypeelem.find('strong').text
+                    eventnames = eventtypeelem.findAll('a')
+                    for eventnamehtml in eventnames:
+                        eventname = eventnamehtml.text
+                        eventurl = eventnamehtml['href']
+                        #print eventurl, eventtype, eventname
+                        getAllResults(eventurl, eventtype, eventname)
+        #2012-13 Season
+        elif (loop == 19):
+            eventcontainer = section.find('p')
+            eventsoup = eventcontainer.findAll(['strong','a'])
+            for eventelem in eventsoup:
+                if (eventelem.name == 'strong'):
+                    if(re.search('[a-zA-Z]', eventelem.text)):
+                        eventtype = eventelem.text
+                if (eventelem.name == 'a'):
+                    eventname = eventelem.text
+                    eventurl = eventelem['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+        #2013-2014 Season to 2014-2015
+        elif(20 <= loop < 22):
+            eventsoup = section.findAll(['strong','a'])
+            for eventelem in eventsoup:
+                if (eventelem.name == 'strong'):
+                    if(re.search('[a-zA-Z]', eventelem.text)):
+                        eventtype = eventelem.text
+                if (eventelem.name == 'a'):
+                    eventname = eventelem.text
+                    eventurl = eventelem['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+        #2015-2016 Season to present
+        elif(22 <= loop):
+            eventsoup = section.findAll(['h4','a'])
+            for eventelem in eventsoup:
+                if (eventelem.name == 'h4'):
+                    if(re.search('[a-zA-Z]', eventelem.text)):
+                        eventtype = eventelem.text
+                if (eventelem.name == 'a'):
+                    eventname = eventelem.text
+                    eventurl = eventelem['href']
+                    #print eventurl, eventtype, eventname
+                    getAllResults(eventurl, eventtype, eventname)
+
+
+
+def getAllCoverageEventsOLD():
     coverageURL = "http://magic.wizards.com/en/events/coverage"
     htmlFile = urllib.urlopen(coverageURL)
     rawHTML = htmlFile.read()
