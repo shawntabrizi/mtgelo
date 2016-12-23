@@ -1,7 +1,12 @@
 ﻿import sqlite3
 import os
 
-#__file__ = "c:\users\shawn\documents\\visual studio 2015\Projects\mtgelo\mtgelo\mtgelo\database.py"
+__file__ = "c:\users\shawn\documents\\visual studio 2015\Projects\mtgelo\mtgelo\mtgelo\database.py"
+
+def reset_db():
+    __file__ = "c:\users\shawn\documents\\visual studio 2015\Projects\mtgelo\mtgelo\mtgelo\database.py"
+    delete_db()
+    create_db()
 
 def connect_db():
     dir = os.path.dirname(__file__)
@@ -19,18 +24,18 @@ def create_db():
     c = conn.cursor()
     #c.executescript('drop table if exists playerHistory')
     c.executescript('''create table playerHistory(
-                                event text,
-                                day text,
+                                eventtype text,
+                                eventname text,
                                 date text,
                                 round text,
                                 matchtable text,
-                                playername text,
+                                playerfirstname text,
+                                playerlastname text,
                                 playercountry text,
                                 result text,
-                                vs text,
-                                opponentname text,
-                                opponentcountry text,
-                                CONSTRAINT uniquevalues UNIQUE (event,round,matchtable,playername,opponentname)
+                                opponentfirstname text,
+                                opponentlastname text,
+                                opponentcountry text
                                 )''')
     conn.close()
 
@@ -38,12 +43,10 @@ def playerHistoryToDB(playerHistory):
     #print playerHistory
     conn = connect_db()
     c = conn.cursor()
-    for item in playerHistory:
-            print "ADDING"
-            print item
-            if (len(item) != 11):
-                print "BAD ITEM!!!!"
-            else:
-                c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?)', item)
+    print ("ADDING", playerHistory)
+    if (len(playerHistory) != 12):
+        print "BAD ITEM!!!!"
+    else:
+        c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
     conn.commit()
     conn.close()
