@@ -6,6 +6,9 @@ import daterangeparser
 
 from database import *
 
+#global variable for db table size
+dblength = 16
+
 def processName(resultsrow):
     garbagepat = []
     #remove '[!]' from the name... what is it even there for?
@@ -16,12 +19,10 @@ def processName(resultsrow):
     garbagepat.append('\(\d*\)')
     
     for pat in garbagepat:
-        if re.search(pat, resultsrow[5]):
-            resultsrow[5] = re.sub(pat,'',resultsrow[5])
         if re.search(pat, resultsrow[9]):
             resultsrow[9] = re.sub(pat,'',resultsrow[9])
-
-
+        if re.search(pat, resultsrow[13]):
+            resultsrow[13] = re.sub(pat,'',resultsrow[13])
     #extract country from name
     countrypat = []
     #extract country when it is '[ABC]'
@@ -34,15 +35,15 @@ def processName(resultsrow):
     countrypat.append('\(([A-Z][A-Z][A-Z]?)\)')
     #player
     for pat in countrypat:
-        if re.search(pat, resultsrow[5]):
-            resultsrow[7] = re.search(pat, resultsrow[5]).group(1)
-            resultsrow[5] = re.sub(pat, '', resultsrow[5])
-            break
-    #opponent
-    for pat in countrypat:
         if re.search(pat, resultsrow[9]):
             resultsrow[11] = re.search(pat, resultsrow[9]).group(1)
             resultsrow[9] = re.sub(pat, '', resultsrow[9])
+            break
+    #opponent
+    for pat in countrypat:
+        if re.search(pat, resultsrow[13]):
+            resultsrow[15] = re.search(pat, resultsrow[13]).group(1)
+            resultsrow[13] = re.sub(pat, '', resultsrow[13])
             break
 
     #get first name and last name
@@ -53,22 +54,22 @@ def processName(resultsrow):
     namepat.append('([^\s]+)\s(.*)')
     #player
     for pat in namepat:
-        if re.search(pat, resultsrow[5]):
-            resultsrow[6] = re.search(pat, resultsrow[5]).group(1)
-            resultsrow[5] = re.search(pat, resultsrow[5]).group(2)
-            break
-    #opponent
-    for pat in namepat:
         if re.search(pat, resultsrow[9]):
             resultsrow[10] = re.search(pat, resultsrow[9]).group(1)
             resultsrow[9] = re.search(pat, resultsrow[9]).group(2)
             break
-    if re.match('bye', resultsrow[9], re.I) and re.match('awarded', resultsrow[10], re.I):
-        resultsrow[9] = 'Awarded'
-        resultsrow[10] = u'BYE'
+    #opponent
+    for pat in namepat:
+        if re.search(pat, resultsrow[13]):
+            resultsrow[14] = re.search(pat, resultsrow[13]).group(1)
+            resultsrow[13] = re.search(pat, resultsrow[13]).group(2)
+            break
+    if re.match('bye', resultsrow[13], re.I) and re.match('awarded', resultsrow[14], re.I):
+        resultsrow[13] = 'Awarded'
+        resultsrow[14] = u'BYE'
 
-def saveResults(loop, resulturl, eventtype, eventname, date, round):
-    #resulturl = "http://magic.wizards.com/en/events/coverage/gplil16/round-12-results-2016-08-28"
+def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl, eventtype, eventname, date, round):
+    #resulturl = "http://magic.wizards.com/en/articles/archive/event-coverage/grand-prix-guadalajara-round-14-results-2013-05-26"
     htmlFile = urllib.urlopen(resulturl)
     resulturl = htmlFile.geturl()
 
@@ -79,7 +80,6 @@ def saveResults(loop, resulturl, eventtype, eventname, date, round):
             date = tempdate
     #some pages do not exist... #wizardProblems
     if (htmlFile.getcode() == 200):
-        print 'opened'
         rawHTML = htmlFile.read()
         soup = BeautifulSoup(rawHTML)
         #is there a table? Sortrow is a weird tag that they sometimes use for the header??
@@ -89,6 +89,7 @@ def saveResults(loop, resulturl, eventtype, eventname, date, round):
         if table:
             table = table.findAll(['tr','sortrow'])
         if table:
+            print table
             #starting to parse the table
             totalresults = []
             #establish header row index
@@ -130,63 +131,96 @@ def saveResults(loop, resulturl, eventtype, eventname, date, round):
                     elif re.search('opponent', headerrowindex.text, re.I):
                         opponentindex = index
             print (tableindex, playerindex, resultindex, opponentindex)
-            for row in table[1:]: #skip first row, which is a header row
-                #table is a fixed size, 12
-                resultsrow = [''] * 12
+            tablelength = len(table)
+            if endrow == 0:
+                endrow = tablelength
+            if startrow == 0:
+                #skip first row, which is a header row
+                startrow = 1
+            loop = startrow
+            while (loop < tablelength and loop < endrow):
+                row = table[loop]
+                #table is a fixed size
+                resultsrow = [''] * dblength
                 #initial data entry
-                resultsrow[0] = eventtype
-                resultsrow[1] = eventname
-                resultsrow[2] = date
-                resultsrow[3] = round
+                #be able to uniquely identify a loop
+                resultsrow[0] = coverageloop
+                resultsrow[1] = eventloop
+                resultsrow[2] = resultloop
+                resultsrow[3] = loop
+                #standard metadata from the other loops
+                resultsrow[4] = eventtype
+                resultsrow[5] = eventname
+                resultsrow[6] = date
+                resultsrow[7] = round
                 #reading each coloumn in a row
                 tds = row.findAll('td')
                 if len(tds) == len (headerrowindexes):
                     if tableindex != None:
-                        resultsrow[4] = tds[tableindex].text
+                        resultsrow[8] = tds[tableindex].text
                     if playerindex != None:
-                        resultsrow[5] = tds[playerindex].text
+                        resultsrow[9] = tds[playerindex].text
                     if playercountryindex != None:
-                        resultsrow[7] = tds[playercountryindex].text
+                        resultsrow[11] = tds[playercountryindex].text
                     if resultindex != None:
-                        resultsrow[8] = tds[resultindex].text
+                        resultsrow[12] = tds[resultindex].text
                     if opponentindex != None:
-                        resultsrow[9] = tds[opponentindex].text
+                        resultsrow[13] = tds[opponentindex].text
                     if opponentcountryindex != None:
-                        resultsrow[11] = tds[opponentcountryindex].text
+                        resultsrow[15] = tds[opponentcountryindex].text
                     #process names to pull out country data
                     if isplayer:
                         processName(resultsrow)
                     else:
-                        resultsrow[6] = 'TEAM EVENT'
                         resultsrow[10] = 'TEAM EVENT'
+                        resultsrow[14] = 'TEAM EVENT'
                     #process country to only have letters
-                    resultsrow[7] = re.sub('[^a-zA-Z]','',resultsrow[7])
                     resultsrow[11] = re.sub('[^a-zA-Z]','',resultsrow[11])
+                    resultsrow[15] = re.sub('[^a-zA-Z]','',resultsrow[15])
                     #check if result is BYE, and put it in the Opponent Last Name, clear first name
                     if re.search('bye', resultsrow[8], re.I):
-                        resultsrow[8] = ''
-                        resultsrow[9] = ''
-                        resultsrow[10] = 'BYE'
+                        resultsrow[12] = ''
+                        resultsrow[13] = ''
+                        resultsrow[14] = 'BYE'
                     #remove beginning and ending whitespace
-                    resultsrow = [resultrow.strip() for resultrow in resultsrow]
+                    #also convert to INT if possible
+                    striploop = 0
+                    while (striploop < len(resultsrow)):
+                        #check that it is not an int
+                        if not isinstance(resultsrow[striploop], int):
+                            try:
+                                resultsrow[striploop] = int(resultsrow[striploop])
+                            except:
+                                resultsrow[striploop] = resultsrow[striploop].strip()
+                        striploop = striploop + 1
+                    #write to DB
                     playerHistoryToDB(resultsrow)
+                loop = loop + 1
         else:
-            errorresults = ['']*12
-            errorresults[0] = eventtype
-            errorresults[1] = eventname
-            errorresults[2] = date
-            errorresults[3] = round
+            errorresults = ['']*dblength
+            errorresults[0] = coverageloop
+            errorresults[1] = eventloop
+            errorresults[2] = resultloop
+            errorresults[3] = ''
+            errorresults[4] = eventtype
+            errorresults[5] = eventname
+            errorresults[6] = date
+            errorresults[7] = round
             playerHistoryToDB(errorresults)
     else:
         #if the page doesnt exist
-        errorresults = ['']*12
-        errorresults[0] = eventtype
-        errorresults[1] = eventname
-        errorresults[2] = date
-        errorresults[3] = round
+        errorresults = ['']*dblength
+        errorresults[0] = coverageloop
+        errorresults[1] = eventloop
+        errorresults[2] = resultloop
+        errorresults[3] = ''
+        errorresults[4] = eventtype
+        errorresults[5] = eventname
+        errorresults[6] = date
+        errorresults[7] = round
         playerHistoryToDB(errorresults)
 
-def getAllResults(loop, startround, endround, eventurl, eventtype, eventname, date):
+def getAllResults(coverageloop, eventloop, startround, endround, startrow, endrow, eventurl, eventtype, eventname, date):
     #eventurl = 'http://magic.wizards.com/en/events/coverage/gpveg15-1'
     if(eventurl.find("magic.wizards.com") == -1):
         eventurl = urlparse.urljoin('http://magic.wizards.com/en/events/coverage', eventurl)
@@ -208,45 +242,47 @@ def getAllResults(loop, startround, endround, eventurl, eventtype, eventname, da
         for byday in bydays:
             if (byday.find('p', text=re.compile("results", re.I))):
                 resultsurls = byday.findAll("a")
-                for resulturl in resultsurls:
-                    if(resulturl['href'].find("magic.wizards.com") == -1):
-                        resulturl['href'] = urlparse.urljoin(eventurl, resulturl['href'])
-                    print resulturl['href']
-                    if not (re.search('player', resulturl.text, re.I)):
-                        if(re.search('(\d+)', resulturl.text)):
-                            round = re.search('(\d+)', resulturl.text).group(1)
-                        else:
-                            round = resulturl.text
-                        if not (resulturl['href'] == None or eventname == None or round == None):
-                            results = saveResults(loop, resulturl['href'], eventtype, eventname, date, round)
     elif soup.findAll('a', text=re.compile('(result)|(results)', re.I)):
         #if we never found a section where results were all organized, look for links with the word "results" on the page
         resultsurls = soup.findAll('a', text=re.compile('(result)|(results)', re.I))
         #only look at results specified
         
     resultslength = len(resultsurls)
-    if endround == 0:
-        endround = resultslength
-    loop = startround
-    while (loop < resultslength and loop < endround):
-        if(resulturl['href'].find("magic.wizards.com") == -1):
-            resulturl['href'] = urlparse.urljoin(eventurl, resulturl['href'])
-        print resulturl['href']
-        if not (re.search('player', resulturl.text, re.I)):
-            if (re.search('round-(\d+)',resulturl['href'])):
-                round = re.search('round-(\d+)',resulturl['href']).group(1)
-            else:
-                round = ''
-            if not (resulturl['href'] == None or eventname == None or round == None):
-                results = saveResults(loop, resulturl['href'], eventtype, eventname, date, round)
-        #iterate loop
-        loop = loop + 1
+    if 0 < resultslength:
+        if endround == 0:
+            endround = resultslength
+        loop = startround
+        while (loop < resultslength and loop < endround):
+            #grab the loop we are on
+            resulturl = resultsurls[loop]
+            if(resulturl['href'].find("magic.wizards.com") == -1):
+                resulturl['href'] = urlparse.urljoin(eventurl, resulturl['href'])
+            print resulturl['href']
+            if not (re.search('player', resulturl.text, re.I)):
+                #Find Round Number
+                #Sometimes Round Number is Right in the URL
+                if (re.search('round-(\d+)',resulturl['href'])):
+                    round = re.search('round-(\d+)',resulturl['href']).group(1)
+                #Otherwise look at the link text for a number
+                elif re.search('(\d+)',resulturl.text):
+                    round = re.search('(\d+)', resulturl.text).group(1)
+                #cry
+                else:
+                    round = ''
+                if not (resulturl['href'] == None or eventname == None or round == None):
+                    results = saveResults(coverageloop, eventloop, loop, startrow, endrow, resulturl['href'], eventtype, eventname, date, round)
+            #iterate loop
+            loop = loop + 1
     else:
         #if nothing useful on the page
-        errorresults = ['']*12
-        errorresults[0] = eventtype
-        errorresults[1] = eventname
-        errorresults[2] = date
+        errorresults = ['']*dblength
+        errorresults[0] = coverageloop
+        errorresults[1] = eventloop
+        errorresults[2] = ''
+        errorresults[3] = ''
+        errorresults[4] = eventtype
+        errorresults[5] = eventname
+        errorresults[6] = date
         print errorresults
         playerHistoryToDB(errorresults)
 
@@ -271,7 +307,7 @@ def findDate (eventelem):
                     print "--Date Parse Exception--"
     return datestring
 
-def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,startrow=0,endrow=0):
+def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,startround=0,endround=0,startrow=0,endrow=0):
     coverageURL = "http://magic.wizards.com/en/events/coverage"
     htmlFile = urllib.urlopen(coverageURL)
     rawHTML = htmlFile.read()
@@ -285,10 +321,6 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
         endcoverage = sectionslength
     loop = startcoverage
     while (loop < sectionslength and loop < endcoverage):
-        print 'Loop :', loop
-        if (endcoverage < loop):
-            print "Ending Loop"
-            break;
         #grab the loop we are on
         section = sections[loop]
 
@@ -296,6 +328,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
         print season
         eventtype=""
         eventname=""
+        eventurls = []
+        eventnames = []
+        eventdates = []
+        eventtypes = []
         #different patterns to match per season, starting from the first season 1994
         #1994 Season to 2008 Season, 15 total sections
         if (loop < 15):
@@ -309,7 +345,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
                     
         #2009 Season
         elif (loop == 15):
@@ -322,7 +361,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventnamehtml['href']
                     date = findDate(eventnamehtml)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
         #2010 Season
         elif (loop == 16):
             eventtypes = section.findAll('p')
@@ -337,7 +379,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventnamehtml['href']
                     date = findDate(eventnamehtml)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
         #2011 Season to 2012 Season
         elif (17 <= loop < 19):
             eventtypes = section.findAll('p')
@@ -350,7 +395,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                         eventurl = eventnamehtml['href']
                         date = findDate(eventnamehtml)
                         #print eventurl, eventtype, eventname
-                        getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                        eventtypes.append(eventtype)
+                        eventurls.append(eventurl)
+                        eventnames.append(eventname)
+                        eventdates.append(date)
         #2012-13 Season
         elif (loop == 19):
             eventcontainer = section.find('p')
@@ -364,7 +412,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
         #2013-2014 Season to 2014-2015
         elif(20 <= loop < 22):
             eventsoup = section.findAll(['strong','a'])
@@ -377,7 +428,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
         #2015-2016 Season to present
         elif(22 <= loop):
             eventsoup = section.findAll(['h4','a'])
@@ -390,25 +444,21 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startround=0,endround=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    getAllResults(loop, startround,endround, eventurl, eventtype, eventname, date)
+                    eventtypes.append(eventtype)
+                    eventurls.append(eventurl)
+                    eventnames.append(eventname)
+                    eventdates.append(date)
+        eventurlslength = len(eventurls)
+        if endevent == 0:
+            endevent = eventurlslength
+        eventloop = startevent
+        while (eventloop < eventurlslength and eventloop < endevent):
+            eventurl = eventurls[eventloop]
+            eventtype = eventtypes[eventloop]
+            eventname = eventnames[eventloop]
+            date = eventdates[eventloop]
+            getAllResults(loop, eventloop, startround,endround, startrow, endrow, eventurl, eventtype, eventname, date)
+            eventloop = eventloop + 1
+
         #iterate the loop
         loop = loop + 1
-
-
-
-def getAllCoverageEventsOLD():
-    coverageURL = "http://magic.wizards.com/en/events/coverage"
-    htmlFile = urllib.urlopen(coverageURL)
-    rawHTML = htmlFile.read()
-    soup = BeautifulSoup(rawHTML)
-    
-    sections = soup.findAll('div', attrs={'class':'bean_block bean_block_html bean--wiz-content-html-block '})
-    for idx,section in enumerate(sections[1:]):
-        season = section.find('h2')
-        events = section.findAll('a', attrs={'class':'more'})
-        for event in events:
-            if(event['href'].find("magic.wizards.com") == -1):
-                event['href'] = urlparse.urljoin(htmlFile.geturl(), event['href'])
-            eventname = season.text + ": " + event.text
-            print eventname
-        getAllResults(event['href'], eventname)
