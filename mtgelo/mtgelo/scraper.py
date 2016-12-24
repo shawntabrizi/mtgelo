@@ -17,6 +17,8 @@ def processName(resultsrow):
     garbagepat.append('\*')
     #remove rank from player name '(123)'
     garbagepat.append('\(\d*\)')
+    #remove TM from player name... really?
+    garbagepat.append(u'(\u2122)')
     
     for pat in garbagepat:
         if re.search(pat, resultsrow[9]):
@@ -368,8 +370,6 @@ def findDate (eventelem):
                     print "--Date Parse Exception--"
     return datestring
 
-def getAllEvents():
-
 
 def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,startround=0,endround=0,startrow=0,endrow=0):
     coverageURL = "http://magic.wizards.com/en/events/coverage"
@@ -392,10 +392,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
         print season
         eventtype=""
         eventname=""
-        eventurls = []
-        eventnames = []
-        eventdates = []
-        eventtypes = []
+        eventurlslist = []
+        eventnameslist = []
+        eventdateslist = []
+        eventtypeslist = []
         #different patterns to match per season, starting from the first season 1994
         #1994 Season to 2008 Season, 15 total sections
         if (loop < 15):
@@ -409,10 +409,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
                     
         #2009 Season
         elif (loop == 15):
@@ -425,10 +425,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventnamehtml['href']
                     date = findDate(eventnamehtml)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
         #2010 Season
         elif (loop == 16):
             eventtypes = section.findAll('p')
@@ -443,10 +443,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventnamehtml['href']
                     date = findDate(eventnamehtml)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
         #2011 Season to 2012 Season
         elif (17 <= loop < 19):
             eventtypes = section.findAll('p')
@@ -459,10 +459,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                         eventurl = eventnamehtml['href']
                         date = findDate(eventnamehtml)
                         #print eventurl, eventtype, eventname
-                        eventtypes.append(eventtype)
-                        eventurls.append(eventurl)
-                        eventnames.append(eventname)
-                        eventdates.append(date)
+                        eventtypeslist.append(eventtype)
+                        eventurlslist.append(eventurl)
+                        eventnameslist.append(eventname)
+                        eventdateslist.append(date)
         #2012-13 Season
         elif (loop == 19):
             eventcontainer = section.find('p')
@@ -476,10 +476,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
         #2013-2014 Season to 2014-2015
         elif(20 <= loop < 22):
             eventsoup = section.findAll(['strong','a'])
@@ -492,10 +492,10 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
         #2015-2016 Season to present
         elif(22 <= loop):
             eventsoup = section.findAll(['h4','a'])
@@ -508,21 +508,21 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurl = eventelem['href']
                     date = findDate(eventelem)
                     #print eventurl, eventtype, eventname
-                    eventtypes.append(eventtype)
-                    eventurls.append(eventurl)
-                    eventnames.append(eventname)
-                    eventdates.append(date)
-        eventurlslength = len(eventurls)
+                    eventtypeslist.append(eventtype)
+                    eventurlslist.append(eventurl)
+                    eventnameslist.append(eventname)
+                    eventdateslist.append(date)
+        eventurlslength = len(eventurlslist)
         if endevent == 0:
             endeventloop = eventurlslength
         else:
             endeventloop = endevent
         eventloop = startevent
         while (eventloop < eventurlslength and eventloop < endeventloop):
-            eventurl = eventurls[eventloop]
-            eventtype = eventtypes[eventloop]
-            eventname = eventnames[eventloop]
-            date = eventdates[eventloop]
+            eventurl = eventurlslist[eventloop]
+            eventtype = eventtypeslist[eventloop]
+            eventname = eventnameslist[eventloop]
+            date = eventdateslist[eventloop]
             getAllResults(loop, eventloop, startround,endround, startrow, endrow, eventurl, eventtype, eventname, date)
             eventloop = eventloop + 1
 
