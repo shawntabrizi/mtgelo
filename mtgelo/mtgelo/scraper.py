@@ -7,7 +7,7 @@ import daterangeparser
 from database import *
 
 #global variable for db table size
-dblength = 16
+dblength = 19
 
 def processName(resultsrow):
     garbagepat = []
@@ -68,6 +68,69 @@ def processName(resultsrow):
         resultsrow[13] = 'Awarded'
         resultsrow[14] = u'BYE'
 
+def processResult(resultsrow):
+    #take "won 2-0" and turn it into 'won' and '2-0'... etc
+    winpat = '(won)|(win)'
+    drawpat = '(drew)|(draw)'
+    lostpat = '(lost)|(loss)'
+
+    resultvalue = None
+    score = []
+
+    #win pattern
+    if re.search(winpat, resultsrow[12], re.I):
+        resultvalue = 'Won'
+        resultsrow[12] = re.sub(winpat, '', resultsrow[12], 0, re.I)
+    #draw pattern
+    elif re.search(drawpat, resultsrow[12], re.I):
+        resultvalue = 'Drew'
+        resultsrow[12] = re.sub(drawpat, '', resultsrow[12], 0, re.I)
+    #lost pattern
+    elif re.search(lostpat, resultsrow[12], re.I):
+        resultvalue = 'Lost'
+        resultsrow[12] = re.sub(lostpat, '', resultsrow[12], 0, re.I)
+
+    scorepat = '(\d)'
+    if re.search(scorepat, resultsrow[12]):
+        score = re.findall(scorepat, resultsrow[12])
+        for s in score:
+            try:
+                s = int(s)
+            except:
+                print "Could not convert score to int: ", s
+
+    if len(score) == 2:
+       resultsrow[16] = score[0]
+       resultsrow[17] = score[1]
+       resultsrow[18] = 0
+    elif len(score) == 3:
+       resultsrow[16] = score[0]
+       resultsrow[17] = score[1]
+       resultsrow[18] = score[2]
+
+    #if resultvalue is empty still, but score as a value, try to determine result off of score
+    if resultvalue == None:
+        #here I am ignoring the 3rd score value which represents "draws"... is that bad?
+        if len(score) == 2 or len(score) == 3:
+            if score[0] < score[1]:
+                resultvalue = 'Lost'
+            elif score[0] > score[1]:
+                resultvalue = 'Won'
+            elif score[0] == score[1]:
+                resultvalue = 'Drew'
+    #put won, lost, or draw into the resultrow
+    if resultvalue != None:
+        resultsrow[12] = resultvalue
+
+    #check if result is a bye, then put it in the right spot
+    if re.search('bye', resultsrow[12], re.I):
+                        resultsrow[12] = ''
+                        resultsrow[13] = ''
+                        resultsrow[14] = 'BYE'
+
+
+
+
 def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl, eventtype, eventname, date, round):
     #resulturl = "http://magic.wizards.com/en/articles/archive/event-coverage/grand-prix-guadalajara-round-14-results-2013-05-26"
     htmlFile = urllib.urlopen(resulturl)
@@ -89,7 +152,6 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
         if table:
             table = table.findAll(['tr','sortrow'])
         if table:
-            print table
             #starting to parse the table
             totalresults = []
             #establish header row index
@@ -177,11 +239,8 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                     #process country to only have letters
                     resultsrow[11] = re.sub('[^a-zA-Z]','',resultsrow[11])
                     resultsrow[15] = re.sub('[^a-zA-Z]','',resultsrow[15])
-                    #check if result is BYE, and put it in the Opponent Last Name, clear first name
-                    if re.search('bye', resultsrow[8], re.I):
-                        resultsrow[12] = ''
-                        resultsrow[13] = ''
-                        resultsrow[14] = 'BYE'
+                    #process the result value
+                    processResult(resultsrow)
                     #remove beginning and ending whitespace
                     #also convert to INT if possible
                     striploop = 0
@@ -189,8 +248,10 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         #check that it is not an int
                         if not isinstance(resultsrow[striploop], int):
                             try:
+                                #either turn it into a number
                                 resultsrow[striploop] = int(resultsrow[striploop])
                             except:
+                                #or strip the string
                                 resultsrow[striploop] = resultsrow[striploop].strip()
                         striploop = striploop + 1
                     #write to DB
@@ -306,6 +367,9 @@ def findDate (eventelem):
                 except:
                     print "--Date Parse Exception--"
     return datestring
+
+def getAllEvents():
+
 
 def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,startround=0,endround=0,startrow=0,endrow=0):
     coverageURL = "http://magic.wizards.com/en/events/coverage"
@@ -450,9 +514,11 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventdates.append(date)
         eventurlslength = len(eventurls)
         if endevent == 0:
-            endevent = eventurlslength
+            endeventloop = eventurlslength
+        else:
+            endeventloop = endevent
         eventloop = startevent
-        while (eventloop < eventurlslength and eventloop < endevent):
+        while (eventloop < eventurlslength and eventloop < endeventloop):
             eventurl = eventurls[eventloop]
             eventtype = eventtypes[eventloop]
             eventname = eventnames[eventloop]

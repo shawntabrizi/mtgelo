@@ -24,10 +24,10 @@ def create_db():
     c = conn.cursor()
     #c.executescript('drop table if exists playerHistory')
     c.executescript('''create table playerHistory(
-                                coverageid,
-                                eventid,
-                                roundid,
-                                rowid,
+                                coverageid num,
+                                eventid num,
+                                roundid num,
+                                rowid num,
                                 eventtype text,
                                 eventname text,
                                 date text,
@@ -40,6 +40,9 @@ def create_db():
                                 opponentfirstname text,
                                 opponentlastname text,
                                 opponentcountry text,
+                                won text,
+                                lost text,
+                                drew text,
                                 constraint unique_row unique (coverageid,eventid,roundid,rowid)
                                 )''')
     conn.close()
@@ -49,9 +52,9 @@ def playerHistoryToDB(playerHistory):
     conn = connect_db()
     c = conn.cursor()
     print ("ADDING", playerHistory)
-    if (len(playerHistory) != 16):
+    if (len(playerHistory) != 19):
         print "BAD ITEM!!!!"
     else:
-        c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
+        c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
     conn.commit()
     conn.close()
