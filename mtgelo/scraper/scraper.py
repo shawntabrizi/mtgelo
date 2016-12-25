@@ -20,11 +20,13 @@ def processName(resultsrow):
     #remove TM from player name... really?
     garbagepat.append(u'(\u2122)')
     
+    #here we want to remove all garbage patterns, so there is no break in the loop
     for pat in garbagepat:
         if re.search(pat, resultsrow[9]):
             resultsrow[9] = re.sub(pat,'',resultsrow[9])
         if re.search(pat, resultsrow[13]):
             resultsrow[13] = re.sub(pat,'',resultsrow[13])
+
     #extract country from name
     countrypat = []
     #extract country when it is '[ABC]'
@@ -35,6 +37,8 @@ def processName(resultsrow):
     countrypat.append('\-\s?([A-Z][A-Z][A-Z]?)')
     #extract country when it is '(ABC)'
     countrypat.append('\(([A-Z][A-Z][A-Z]?)\)')
+    
+    #here we only want to remove one such country pattern, so we break once we have found a matching pattern
     #player
     for pat in countrypat:
         if re.search(pat, resultsrow[9]):
@@ -54,6 +58,8 @@ def processName(resultsrow):
     namepat.append('(.*)\,(.*)')
     #space seperated, find the first space...
     namepat.append('([^\s]+)\s(.*)')
+    #again, we only want to apply one of these rules once, so once we find a match, break
+    #order matters here, so we want to search for comma first
     #player
     for pat in namepat:
         if re.search(pat, resultsrow[9]):
@@ -66,6 +72,8 @@ def processName(resultsrow):
             resultsrow[14] = re.search(pat, resultsrow[13]).group(1)
             resultsrow[13] = re.search(pat, resultsrow[13]).group(2)
             break
+    
+    #Look specifically for the cases where an Bye is awarded for having plainswalker points, and then flip the order of them, and regular their case
     if re.match('bye', resultsrow[13], re.I) and re.match('awarded', resultsrow[14], re.I):
         resultsrow[13] = 'Awarded'
         resultsrow[14] = u'BYE'
