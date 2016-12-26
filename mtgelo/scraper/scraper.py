@@ -10,80 +10,65 @@ dblength = 19
 
 
 def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
+    patterns = []
     #patterns for cov 7, event 4
-    pat74 = []
-    pat74.append(['\(M[E]?[X]?$', '(MEX)'])
-    pat74.append(['\(C[H]?[I]?$', '(CHI)'])
-    pat74.append(['\(A[R]?[G]?$', '(ARG)'])
-
-    #Only want to match a single pattern, so we break
-    if coverageid == 7 and eventid == 4:
-        #player
-        for pat in pat74:
-            if re.search(pat[0], resultsrow[9]):
-                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
-                break
-        #opponent
-        for pat in pat74:
-            if re.search(pat[0], resultsrow[13]):
-                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
-                break
-
+    patterns.append([7, 4, '\(M[E]?[X]?$', '(MEX)'])
+    patterns.append([7, 4, '\(C[H]?[I]?$', '(CHI)'])
+    patterns.append([7, 4, '\(A[R]?[G]?$', '(ARG)'])
     #patterns for cov 7, event 6
-    pat76 = []
-    pat76.append(['\(T[H]?$', '(TH)'])
-    pat76.append(['\(M[Y]?$', '(MY)'])
-    pat76.append(['\(S[G]?$', '(SG)'])
-
-    #Only want to match a single pattern, so we break
-    if coverageid == 7 and eventid == 6:
-        #player
-        for pat in pat76:
-            if re.search(pat[0], resultsrow[9]):
-                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
-                break
-        #opponent
-        for pat in pat76:
-            if re.search(pat[0], resultsrow[13]):
-                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
-                break
-
+    patterns.append([7, 6, '\(T[H]?$', '(TH)'])
+    patterns.append([7, 6, '\(M[Y]?$', '(MY)'])
+    patterns.append([7, 6, '\(S[G]?$', '(SG)'])
     #patterns for cov 7, event 14
-    pat714 = []
-    pat714.append(['\(E[S]?[P]?$', '(ESP)'])
-    pat714.append(['\(N[E]?[D]?$', '(NED)'])
-    pat714.append(['\(S[N]?[G]?$', '(SNG)'])
-    pat714.append(['\(G[E]?[R]?$', '(GER)'])
-    pat714.append(['\(M[E]?[X]?$', '(MEX)'])
-
-    #Only want to match a single pattern, so we break
-    if coverageid == 7 and eventid == 14:
-        #player
-        for pat in pat714:
-            if re.search(pat[0], resultsrow[9]):
-                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
-                break
-        #opponent
-        for pat in pat714:
-            if re.search(pat[0], resultsrow[13]):
-                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
-                break
-
+    patterns.append([7, 14, '\(E[S]?[P]?$', '(ESP)'])
+    patterns.append([7, 14, '\(N[E]?[D]?$', '(NED)'])
+    patterns.append([7, 14, '\(S[N]?[G]?$', '(SNG)'])
+    patterns.append([7, 14, '\(G[E]?[R]?$', '(GER)'])
+    patterns.append([7, 14, '\(M[E]?[X]?$', '(MEX)'])
     #patterns for cov 7, event 40
-    pat740 = []
-    pat740.append(['\(1[7]?[0]?[0]?$', '(1700)'])
+    patterns.append([7, 40, '\(1[7]?[0]?[0]?$', '(1700)'])
+    #patterns for cov 10, event 26
+    patterns.append([10, 26, '(\(Aich)\s\[', '(Aichi) ['])
+    #patterns for cov 10, event 34
+    patterns.append([10, 34, '\(Fukushima$', '(Fukushima)'])
+    #patterns for cov 12, event 20
+    patterns.append([12, 20, '\(Okayama\s\[', '(Okayama) ['])
+    patterns.append([12, 20, '\(Hyo\s\[', '(Hyogo) ['])
+    patterns.append([12, 20, '\(Osa\s\[', '(Osaka) ['])
+    #patterns for cov 16, event 30
+    patterns.append([16, 30, '\(Yamagata$', '(Yamagata)'])
+    patterns.append([16, 30, '\(Saitama', '(Saitama)'])
+    patterns.append([16, 30, '\(Oosaka$', '(Osaka)'])
+    patterns.append([16, 30, '\(Chiba$', '(Chiba)'])
+    patterns.append([16, 30, '\(Aichi$', '(Aichi)'])
+    patterns.append([16, 30, '\(Tokyo$', '(Tokyo)'])
+    patterns.append([16, 30, '\(Hyogo$', '(Hyogo)'])
+    patterns.append([16, 30, '\(Gunma$', '(Gunma)'])
+    patterns.append([16, 30, '\(Hokkaido$', '(Hokkaido)'])
+    patterns.append([16, 30, '\(Aomori$', '(Aomori)'])
+    patterns.append([16, 30, '\(Nagano$', '(Nagano)'])
+    patterns.append([16, 30, '\(Kanagawa$', '(Kanagawa)'])
+    # patterns for cov 19, event 12
+    patterns.append([19, 12, '\(tokyo\s\[', '(Tokyo) ['])
+    patterns.append([19, 12, '\(sait\s\[', '(Saitama) ['])
+    patterns.append([19, 12, '\(chib\s\[', '(Chiba) ['])
+    # patterns for cov 19, event 23
+    patterns.append([19, 23, '\(Hiroshima$', '(Hiroshima)'])
+    # patterns for cov 19, event 42
+    patterns.append([19, 42, '\(Kanagawa$', '(Kanagawa)'])
 
     #Only want to match a single pattern, so we break
-    if coverageid == 7 and eventid == 40:
-        #player
-        for pat in pat740:
-            if re.search(pat[0], resultsrow[9]):
-                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
+    #player
+    for pat in patterns:
+        if coverageid == pat[0] and eventid == pat[1]:
+            if re.search(pat[2], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[2], pat[3], resultsrow[9])
                 break
-        #opponent
-        for pat in pat740:
-            if re.search(pat[0], resultsrow[13]):
-                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
+    #opponent
+    for pat in patterns:
+        if coverageid == pat[0] and eventid == pat[1]:
+            if re.search(pat[2], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[2], pat[3], resultsrow[13])
                 break
 
 def processTeamName(resultsrow):
@@ -138,31 +123,50 @@ def processName(resultsrow):
     #extract country when it is '- ABC'
     countrypat.append('\-\s?([A-Z][A-Z][A-Z]?)')
     #Then start to look for specific strings we know exist, mostly japanese countries
-    countrypat.append('\(([tT]okyo)\)')
-    countrypat.append('\(([sS]endai)\)')
-    countrypat.append('\(([mM]ie)\)')
-    countrypat.append('\(([kK]awasaki)\)')
-    countrypat.append('\(([oO]kayama)\)')
+    countrypat.append('\(([aA]ichi)\)')
+    countrypat.append('\(([aA]kita)\)')
+    countrypat.append('\(([aA]omori)\)')
+    countrypat.append('\(([cC]hamp)\)')
+    countrypat.append('\(([cC]hiba)\)')
+    countrypat.append('\(([eE]hime)\)')
+    countrypat.append('\(([fF]ukushima)\)')
+    countrypat.append('\(([fF]ukui)\)')
+    countrypat.append('\(([fF]ukuoka)\)')
+    countrypat.append('\(([fF]uchu)\)')
+    countrypat.append('\(([gG]ifu)\)')
+    countrypat.append('\(([gG]unma)\)')
+    countrypat.append('\(([hH]yogo)\)')
+    countrypat.append('\(([hH]okkaido)\)')
+    countrypat.append('\(([hH]iroshima)\)')
+    countrypat.append('\(([hH]ino)\)')
+    countrypat.append('\(([iI]shikawa)\)')
+    countrypat.append('\(([iI]wate)\)')
+    countrypat.append('\(([iI]baraki)\)')
+    countrypat.append('\(([jJ]apan)\)')
     countrypat.append('\(([kK]umamoto)[\)]?')
     countrypat.append('\(([kK]agoshima)\)')
-    countrypat.append('\(([sS]higa)\)')
-    countrypat.append('\(([sS]hizuoka)\)')
-    countrypat.append('\(([mM]iyagi)\)')
-    countrypat.append('\(([kK]anagawa)\)')
-    countrypat.append('\(([aA]ichi)\)')
-    countrypat.append('\(([hH]iroshima)\)')
-    countrypat.append('\(([tT]okushim[a]?)[\)]?')
+    countrypat.append('\(([kK]awasaki)\)')
     countrypat.append('\(([kK]yoto)\)')
-    countrypat.append('\(([fF]ukui)\)')
-    countrypat.append('\(([iI]shikawa)\)')
+    countrypat.append('\(([kK]anagawa)\)')
+    countrypat.append('\(([mM]iyagi)\)')
+    countrypat.append('\(([mM]ie)\)')
+    countrypat.append('\(([mM]achida)\)')
     countrypat.append('\(([nN]agano)\)')
-    countrypat.append('\(([gG]ifu)\)')
+    countrypat.append('\(([nN]iigata)\)')
+    countrypat.append('\(([nN]ara)\)')
+    countrypat.append('\(([oO]kayama)\)')
+    countrypat.append('\(([oO]saka)\)')
+    countrypat.append('\(([sS]endai)\)')
+    countrypat.append('\(([sS]higa)\)')
     countrypat.append('\(([sS]aitama)\)')
     countrypat.append('\(([sS]apporo)\)')
-    countrypat.append('\(([oO]saka)\)')
-    countrypat.append('\(([hH]yogo)\)')
+    countrypat.append('\(([sS]hizuoka)\)')
+    countrypat.append('\(([tT]okyo)\)')
+    countrypat.append('\(([tT]ochigi)\)')
+    countrypat.append('\(([tT]ottori)\)')
+    countrypat.append('\(([tT]okushim[a]?)[\)]?')
+    countrypat.append('\(([yY]amagata)[\)]?')
 
-    
     #here we only want to remove one such country pattern, so we break once we have found a matching pattern
     #player
     for pat in countrypat:
