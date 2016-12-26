@@ -1,13 +1,104 @@
 ﻿import urllib
 from bs4 import BeautifulSoup
 import re
-import urlparse
 import daterangeparser
 
-from database import *
+from mtgelo.scraper.database import *
 
 #global variable for db table size
 dblength = 19
+
+
+def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
+    #patterns for cov 7, event 4
+    pat74 = []
+    pat74.append(['\(M[E]?[X]?$', '(MEX)'])
+    pat74.append(['\(C[H]?[I]?$', '(CHI)'])
+    pat74.append(['\(A[R]?[G]?$', '(ARG)'])
+
+    #Only want to match a single pattern, so we break
+    if coverageid == 7 and eventid == 4:
+        #player
+        for pat in pat74:
+            if re.search(pat[0], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
+                break
+        #opponent
+        for pat in pat74:
+            if re.search(pat[0], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
+                break
+
+    #patterns for cov 7, event 6
+    pat76 = []
+    pat76.append(['\(T[H]?$', '(TH)'])
+    pat76.append(['\(M[Y]?$', '(MY)'])
+    pat76.append(['\(S[G]?$', '(SG)'])
+
+    #Only want to match a single pattern, so we break
+    if coverageid == 7 and eventid == 6:
+        #player
+        for pat in pat76:
+            if re.search(pat[0], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
+                break
+        #opponent
+        for pat in pat76:
+            if re.search(pat[0], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
+                break
+
+    #patterns for cov 7, event 14
+    pat714 = []
+    pat714.append(['\(E[S]?[P]?$', '(ESP)'])
+    pat714.append(['\(N[E]?[D]?$', '(NED)'])
+    pat714.append(['\(S[N]?[G]?$', '(SNG)'])
+    pat714.append(['\(G[E]?[R]?$', '(GER)'])
+    pat714.append(['\(M[E]?[X]?$', '(MEX)'])
+
+    #Only want to match a single pattern, so we break
+    if coverageid == 7 and eventid == 14:
+        #player
+        for pat in pat714:
+            if re.search(pat[0], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
+                break
+        #opponent
+        for pat in pat714:
+            if re.search(pat[0], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
+                break
+
+    #patterns for cov 7, event 40
+    pat740 = []
+    pat740.append(['\(1[7]?[0]?[0]?$', '(1700)'])
+
+    #Only want to match a single pattern, so we break
+    if coverageid == 7 and eventid == 40:
+        #player
+        for pat in pat740:
+            if re.search(pat[0], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[0], pat[1], resultsrow[9])
+                break
+        #opponent
+        for pat in pat740:
+            if re.search(pat[0], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[0], pat[1], resultsrow[13])
+                break
+
+def processTeamName(resultsrow):
+    garbagepat = []
+    #remove '*Amateur*' from team name, and substrings of it...
+    garbagepat.append('\*Ama[t]?[e]?[u]?[r]?[\*]?')
+    #remove rank from team name '(123)'
+    garbagepat.append('\(\d*\)')
+
+    #here we want to remove all garbage patterns, so there is no break in the loop
+    for pat in garbagepat:
+        if re.search(pat, resultsrow[9]):
+            resultsrow[9] = re.sub(pat, '', resultsrow[9])
+        if re.search(pat, resultsrow[13]):
+            resultsrow[13] = re.sub(pat, '', resultsrow[13])
 
 def processName(resultsrow):
     garbagepat = []
@@ -19,6 +110,14 @@ def processName(resultsrow):
     garbagepat.append('\(\d*\)')
     #remove TM from player name... really?
     garbagepat.append(u'(\u2122)')
+    #remove '(Amateur)'
+    garbagepat.append('\(Amate[u]?[r]?[\)]?')
+    #remove (VIP)
+    garbagepat.append('\(VIP\)')
+    #remove (P)
+    garbagepat.append('\(P\)')
+    #remove '(' at end of string
+    garbagepat.append('\($')
     
     #here we want to remove all garbage patterns, so there is no break in the loop
     for pat in garbagepat:
@@ -28,27 +127,53 @@ def processName(resultsrow):
             resultsrow[13] = re.sub(pat,'',resultsrow[13])
 
     #extract country from name
+    #Order of these filters matter
     countrypat = []
     #extract country when it is '[ABC]'
-    countrypat.append('(\[[A-Z][A-Z][A-Z]?\])')
+    countrypat.append('(\[[a-zA-Z][a-zA-Z][a-zA-Z]?\])')
+    #extract country when it is '(ABC)'
+    countrypat.append('\(([a-zA-Z][a-zA-Z][a-zA-Z]?)\)')
     #extract country when it is '/ABC'
     countrypat.append('\/([A-Z][A-Z][A-Z]?)')
     #extract country when it is '- ABC'
     countrypat.append('\-\s?([A-Z][A-Z][A-Z]?)')
-    #extract country when it is '(ABC)'
-    countrypat.append('\(([A-Z][A-Z][A-Z]?)\)')
+    #Then start to look for specific strings we know exist, mostly japanese countries
+    countrypat.append('\(([tT]okyo)\)')
+    countrypat.append('\(([sS]endai)\)')
+    countrypat.append('\(([mM]ie)\)')
+    countrypat.append('\(([kK]awasaki)\)')
+    countrypat.append('\(([oO]kayama)\)')
+    countrypat.append('\(([kK]umamoto)[\)]?')
+    countrypat.append('\(([kK]agoshima)\)')
+    countrypat.append('\(([sS]higa)\)')
+    countrypat.append('\(([sS]hizuoka)\)')
+    countrypat.append('\(([mM]iyagi)\)')
+    countrypat.append('\(([kK]anagawa)\)')
+    countrypat.append('\(([aA]ichi)\)')
+    countrypat.append('\(([hH]iroshima)\)')
+    countrypat.append('\(([tT]okushim[a]?)[\)]?')
+    countrypat.append('\(([kK]yoto)\)')
+    countrypat.append('\(([fF]ukui)\)')
+    countrypat.append('\(([iI]shikawa)\)')
+    countrypat.append('\(([nN]agano)\)')
+    countrypat.append('\(([gG]ifu)\)')
+    countrypat.append('\(([sS]aitama)\)')
+    countrypat.append('\(([sS]apporo)\)')
+    countrypat.append('\(([oO]saka)\)')
+    countrypat.append('\(([hH]yogo)\)')
+
     
     #here we only want to remove one such country pattern, so we break once we have found a matching pattern
     #player
     for pat in countrypat:
         if re.search(pat, resultsrow[9]):
-            resultsrow[11] = re.search(pat, resultsrow[9]).group(1)
+            resultsrow[11] = re.search(pat, resultsrow[9]).group(1).upper()
             resultsrow[9] = re.sub(pat, '', resultsrow[9])
             break
     #opponent
     for pat in countrypat:
         if re.search(pat, resultsrow[13]):
-            resultsrow[15] = re.search(pat, resultsrow[13]).group(1)
+            resultsrow[15] = re.search(pat, resultsrow[13]).group(1).upper()
             resultsrow[13] = re.sub(pat, '', resultsrow[13])
             break
 
@@ -107,7 +232,7 @@ def processResult(resultsrow):
             try:
                 s = int(s)
             except:
-                print "Could not convert score to int: ", s
+                print ("Could not convert score to int: ", s)
 
     if len(score) == 2:
        resultsrow[16] = score[0]
@@ -143,8 +268,13 @@ def processResult(resultsrow):
 
 def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl, eventtype, eventname, date, round):
     #resulturl = "http://magic.wizards.com/en/articles/archive/event-coverage/grand-prix-guadalajara-round-14-results-2013-05-26"
-    htmlFile = urllib.urlopen(resulturl)
-    resulturl = htmlFile.geturl()
+    try:
+        htmlFile = urllib.request.urlopen(resulturl)
+        resulturl = htmlFile.geturl()
+        pageok = True
+    except:
+        pageok = False
+
 
     if (re.search("([0-9]{4}\-[0-9]{2}\-[0-9]{2})", resulturl)):
         #checks for a better date, but ignores 2000-01-01, which is a bad date that wizards sticks in places
@@ -152,9 +282,9 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
         if tempdate != '2000-01-01':
             date = tempdate
     #some pages do not exist... #wizardProblems
-    if (htmlFile.getcode() == 200):
+    if (pageok):
         rawHTML = htmlFile.read()
-        soup = BeautifulSoup(rawHTML)
+        soup = BeautifulSoup(rawHTML, "lxml")
         #is there a table? Sortrow is a weird tag that they sometimes use for the header??
         #but sometimes sortrow is blank, and we need to ignore it
         #hypothesis: sortrow is only blank if it is not 'in the table'
@@ -188,7 +318,7 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                 opponentindex = 5
                 opponentcountryindex = 6
             else:
-                print headerrowindexes
+                print (headerrowindexes)
                 for index,headerrowindex in enumerate(headerrowindexes):
                     if re.search('table', headerrowindex.text, re.I):
                         tableindex = index
@@ -240,10 +370,13 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         resultsrow[13] = tds[opponentindex].text
                     if opponentcountryindex != None:
                         resultsrow[15] = tds[opponentcountryindex].text
+                    #Fix Wizards Data!
+                    customFixData(resultsrow, coverageloop, eventloop, resultloop, loop)
                     #process names to pull out country data
                     if isplayer:
                         processName(resultsrow)
                     else:
+                        processTeamName(resultsrow)
                         resultsrow[10] = 'TEAM EVENT'
                         resultsrow[14] = 'TEAM EVENT'
                     #process country to only have letters
@@ -294,13 +427,13 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
 def getAllResults(coverageloop, eventloop, startround, endround, startrow, endrow, eventurl, eventtype, eventname, date):
     #eventurl = 'http://magic.wizards.com/en/events/coverage/gpveg15-1'
     if(eventurl.find("magic.wizards.com") == -1):
-        eventurl = urlparse.urljoin('http://magic.wizards.com/en/events/coverage', eventurl)
-    htmlFile = urllib.urlopen(eventurl)
+        eventurl = urllib.parse.urljoin('http://magic.wizards.com/en/events/coverage', eventurl)
+    htmlFile = urllib.request.urlopen(eventurl)
     eventurl = htmlFile.geturl()
     rawHTML = htmlFile.read()
-    soup = BeautifulSoup(rawHTML)
+    soup = BeautifulSoup(rawHTML, "lxml")
 
-    print eventurl
+    print (eventurl)
     round = ''
     results = [[]]
     resultsurls = []
@@ -327,8 +460,8 @@ def getAllResults(coverageloop, eventloop, startround, endround, startrow, endro
             #grab the loop we are on
             resulturl = resultsurls[loop]
             if(resulturl['href'].find("magic.wizards.com") == -1):
-                resulturl['href'] = urlparse.urljoin(eventurl, resulturl['href'])
-            print resulturl['href']
+                resulturl['href'] = urllib.parse.urljoin(eventurl, resulturl['href'])
+            print (resulturl['href'])
             if not (re.search('player', resulturl.text, re.I)):
                 #Find Round Number
                 #Sometimes Round Number is Right in the URL
@@ -354,7 +487,7 @@ def getAllResults(coverageloop, eventloop, startround, endround, startrow, endro
         errorresults[4] = eventtype
         errorresults[5] = eventname
         errorresults[6] = date
-        print errorresults
+        print (errorresults)
         playerHistoryToDB(errorresults)
 
 
@@ -362,9 +495,9 @@ def findDate (eventelem):
     #default value
     datestring = ''
     if eventelem.nextSibling:
-        if re.match('\s?\(([^)]+)\)?', unicode(eventelem.nextSibling)):
+        if re.match('\s?\(([^)]+)\)?', str(eventelem.nextSibling)):
             #match parenthesis content at the begginning
-            paren = re.match('\s?\(([^)]+)\)?', unicode(eventelem.nextSibling)).group(1)
+            paren = re.match('\s?\(([^)]+)\)?', str(eventelem.nextSibling)).group(1)
             
             #match date substring
             if re.search('([a-zA-Z]+\.?\s?(\d).*(\d))',paren):
@@ -373,17 +506,17 @@ def findDate (eventelem):
                 date = re.sub(u"\u2013", "-", date)
                 try:
                     if daterangeparser.parse(date):
-                        datestring = unicode(daterangeparser.parse(date)[0].date())
+                        datestring = str(daterangeparser.parse(date)[0].date())
                 except:
-                    print "--Date Parse Exception--"
+                    print ("--Date Parse Exception--")
     return datestring
 
 
 def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,startround=0,endround=0,startrow=0,endrow=0):
     coverageURL = "http://magic.wizards.com/en/events/coverage"
-    htmlFile = urllib.urlopen(coverageURL)
+    htmlFile = urllib.request.urlopen(coverageURL)
     rawHTML = htmlFile.read()
-    soup = BeautifulSoup(rawHTML)
+    soup = BeautifulSoup(rawHTML, "lxml")
     
     sections = soup.findAll('div', attrs={'class':'bean_block bean_block_html bean--wiz-content-html-block '})
     #Reverse the order, starting from oldest... so that we can be consistant about which loop is which year
@@ -397,7 +530,7 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
         section = sections[loop]
 
         season = section.find('h2')
-        print season
+        print (season)
         eventtype=""
         eventname=""
         eventurlslist = []

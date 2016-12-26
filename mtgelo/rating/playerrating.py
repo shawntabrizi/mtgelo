@@ -1,4 +1,4 @@
-import .database
+from mtgelo.scraper.database import *
 import trueskill
 
 def testrating():
