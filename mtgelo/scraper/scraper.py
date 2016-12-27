@@ -10,7 +10,10 @@ dblength = 19
 
 
 def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
+    #single pattern match
     patterns = []
+    #multi-pattern match
+    multipatterns = []
     #patterns for cov 7, event 4
     patterns.append([7, 4, '\(M[E]?[X]?$', '(MEX)'])
     patterns.append([7, 4, '\(C[H]?[I]?$', '(CHI)'])
@@ -27,6 +30,14 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([7, 14, '\(M[E]?[X]?$', '(MEX)'])
     #patterns for cov 7, event 40
     patterns.append([7, 40, '\(1[7]?[0]?[0]?$', '(1700)'])
+    # patterns for cov 7, event 33
+    patterns.append([7, 33, '\[[\!]$', '[!]'])
+    # patterns for cov 7, event 34
+    patterns.append([7, 34, '\[[\!]?$', '[!]'])
+    patterns.append([7, 34, '\[[\!]?\s\-', '[!] -'])
+    # patterns for 8, 29
+    patterns.append([8, 29, '\s[\d]*\,', ','])
+    patterns.append([8, 29, '\(1', ''])
     #patterns for cov 10, event 26
     patterns.append([10, 26, '(\(Aich)\s\[', '(Aichi) ['])
     #patterns for cov 10, event 34
@@ -35,6 +46,8 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([12, 20, '\(Okayama\s\[', '(Okayama) ['])
     patterns.append([12, 20, '\(Hyo\s\[', '(Hyogo) ['])
     patterns.append([12, 20, '\(Osa\s\[', '(Osaka) ['])
+    # patterns for cov 16, event 30
+    patterns.append([15, 19, '\[TK\}', '[TK]'])
     #patterns for cov 16, event 30
     patterns.append([16, 30, '\(Yamagata$', '(Yamagata)'])
     patterns.append([16, 30, '\(Saitama', '(Saitama)'])
@@ -56,6 +69,10 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([19, 23, '\(Hiroshima$', '(Hiroshima)'])
     # patterns for cov 19, event 42
     patterns.append([19, 42, '\(Kanagawa$', '(Kanagawa)'])
+    # patterns for cov 22, event 50
+    multipatterns.append([22, 50, '^aaa\sVIP', 'VIP'])
+    patterns.append([22, 50, '\[V\s', '[V] '])
+    patterns.append([22, 50, '\[\s', '[V] '])
 
     #Only want to match a single pattern, so we break
     #player
@@ -70,6 +87,18 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
             if re.search(pat[2], resultsrow[13]):
                 resultsrow[13] = re.sub(pat[2], pat[3], resultsrow[13])
                 break
+    #For multi-pattern, so no break
+    #player
+    for pat in multipatterns:
+        if coverageid == pat[0] and eventid == pat[1]:
+            if re.search(pat[2], resultsrow[9]):
+                resultsrow[9] = re.sub(pat[2], pat[3], resultsrow[9])
+    #opponent
+    for pat in multipatterns:
+        if coverageid == pat[0] and eventid == pat[1]:
+            if re.search(pat[2], resultsrow[13]):
+                resultsrow[13] = re.sub(pat[2], pat[3], resultsrow[13])
+
 
 def processTeamName(resultsrow):
     garbagepat = []
@@ -103,6 +132,18 @@ def processName(resultsrow):
     garbagepat.append('\(P\)')
     #remove '(' at end of string
     garbagepat.append('\($')
+    #remove '[???]'
+    garbagepat.append('\[\?\?\?\]')
+    #remove '[]'
+    garbagepat.append('\[\]')
+    #remove [ at the end of string
+    garbagepat.append('\[$')
+    #remove "VIP -"
+    garbagepat.append('VIP -')
+    #remove '[V]', which also represents VIP
+    garbagepat.append('\[V\]')
+    #remove '-' at the end
+    garbagepat.append('\-$')
     
     #here we want to remove all garbage patterns, so there is no break in the loop
     for pat in garbagepat:
@@ -166,6 +207,11 @@ def processName(resultsrow):
     countrypat.append('\(([tT]ottori)\)')
     countrypat.append('\(([tT]okushim[a]?)[\)]?')
     countrypat.append('\(([yY]amagata)[\)]?')
+    #Also some United States Regions
+    countrypat.append('\[(SOCAL)\]?')
+    countrypat.append('\[(MATL)\]?')
+    countrypat.append('\[(NOCAL)\]?')
+    countrypat.append('\[(NENG)\]?')
 
     #here we only want to remove one such country pattern, so we break once we have found a matching pattern
     #player
