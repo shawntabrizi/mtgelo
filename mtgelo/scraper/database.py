@@ -3,20 +3,24 @@ import os
 
 __file__ = "C:\\Users\shawn\PycharmProjects\mtgelo\mtgelo\scraper\database.py"
 
+
 def reset_db():
     delete_db()
     create_db()
+
 
 def connect_db():
     dir = os.path.dirname(__file__)
     filename = os.path.join(dir, '..\db\playerhistory.db')
     return sqlite3.connect(filename)
 
+
 def delete_db():
     conn = connect_db()
     c = conn.cursor()
     c.executescript('drop table if exists playerHistory')
     conn.close()
+
 
 def create_db():
     conn = connect_db()
@@ -46,6 +50,21 @@ def create_db():
                                 )''')
     conn.close()
 
+
+def create_playerranking():
+    conn = connect_db()
+    c = conn.cursor()
+    c.executescript('drop table if exists playerRank')
+    c.executescript('''create table playerRank(
+                                playername text,
+                                rating NUMERIC ,
+                                sigma NUMERIC,
+                                count NUMERIC,
+                                mtgelo NUMERIC
+                                )''')
+    conn.close()
+
+
 def playerHistoryToDB(playerHistory):
     #print playerHistory
     conn = connect_db()
@@ -55,5 +74,19 @@ def playerHistoryToDB(playerHistory):
         print ("BAD ITEM!!!!")
     else:
         c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
+    conn.commit()
+    conn.close()
+
+
+def playerRankToDB(playerRank):
+    # print playerHistory
+    conn = connect_db()
+    c = conn.cursor()
+    print(len(playerRank), "ADDING", playerRank)
+    if len(playerRank) != 5:
+        print("BAD ITEM!!!!")
+    else:
+        c.execute('insert into playerRank values (?,?,?,?,?)',
+                  playerRank)
     conn.commit()
     conn.close()
