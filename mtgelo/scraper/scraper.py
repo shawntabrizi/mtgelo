@@ -74,6 +74,22 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([22, 50, '\[V\s', '[V] '])
     patterns.append([22, 50, '\[\s', '[V] '])
 
+    #Commenting this out, just going to remove numbers from ALL names... may mess up some things
+    #May need to revisit
+    # # patterns for numbers at the end of some names
+    # patterns.append([21, 57, '[0-9]*', ''])
+    # patterns.append([22, 30, '[0-9]*', ''])
+    # patterns.append([22, 31, '[0-9]*', ''])
+    # patterns.append([22, 33, '[0-9]*', ''])
+    # patterns.append([22, 37, '[0-9]*', ''])
+    # patterns.append([22, 40, '[0-9]*', ''])
+    # patterns.append([22, 45, '[0-9]*', ''])
+    # patterns.append([22, 47, '[0-9]*', ''])
+    # patterns.append([23, 12, '[0-9]*', ''])
+    # patterns.append([23, 14, '[0-9]*', ''])
+    # patterns.append([23, 16, '[0-9]*', ''])
+    # patterns.append([23, 17, '[0-9]*', ''])
+
     #Only want to match a single pattern, so we break
     #player
     for pat in patterns:
@@ -144,7 +160,15 @@ def processName(resultsrow):
     garbagepat.append('\[V\]')
     #remove '-' at the end
     garbagepat.append('\-$')
-    
+    #remove numbers from names
+    garbagepat.append('[0-9]*')
+    # remove "ZZZVIP"
+    garbagepat.append('ZZZVIP')
+    #remove "zzVIP"
+    garbagepat.append('zzVIP')
+    #remove "zzz"
+    garbagepat.append('zzz')
+
     #here we want to remove all garbage patterns, so there is no break in the loop
     for pat in garbagepat:
         if re.search(pat, resultsrow[9]):
@@ -247,7 +271,7 @@ def processName(resultsrow):
             resultsrow[14] = re.search(pat, resultsrow[13]).group(1)
             resultsrow[13] = re.search(pat, resultsrow[13]).group(2)
             break
-    
+
     #Look specifically for the cases where an Bye is awarded for having plainswalker points, and then flip the order of them, and regular their case
     if re.match('bye', resultsrow[13], re.I) and re.match('awarded', resultsrow[14], re.I):
         resultsrow[13] = 'Awarded'
@@ -275,6 +299,24 @@ def processResult(resultsrow):
         resultvalue = 'Lost'
         resultsrow[12] = re.sub(lostpat, '', resultsrow[12], 0, re.I)
 
+    #fix up the numbers if the results are double digits
+    numberpat = []
+    numberpat.append(['02\-', '2-'])
+    numberpat.append(['01\-', '1-'])
+    numberpat.append(['00\-', '0-'])
+    numberpat.append(['\-02', '-2'])
+    numberpat.append(['\-01', '-1'])
+    numberpat.append(['\-00', '-0'])
+    numberpat.append(['02\/', '2/'])
+    numberpat.append(['01\/', '1/'])
+    numberpat.append(['00\/', '0/'])
+    numberpat.append(['\/02', '/2'])
+    numberpat.append(['\/01', '/1'])
+    numberpat.append(['\/00', '/0'])
+    for pat in numberpat:
+        if re.search(pat[0], resultsrow[12]):
+            resultsrow[12] = re.sub(pat[0], pat[1], resultsrow[12])
+
     scorepat = '(\d)'
     if re.search(scorepat, resultsrow[12]):
         score = re.findall(scorepat, resultsrow[12])
@@ -282,7 +324,7 @@ def processResult(resultsrow):
             try:
                 s = int(s)
             except:
-                print ("Could not convert score to int: ", s)
+                print("Could not convert score to int: ", s)
 
     if len(score) == 2:
        resultsrow[16] = score[0]
@@ -313,6 +355,48 @@ def processResult(resultsrow):
                         resultsrow[13] = ''
                         resultsrow[14] = 'BYE'
 
+def customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex):
+    #try and fix custom tables that are hard to detect by header title
+    customindexes = []
+    customindexes.append([6, 15, 0, 1, None, 2, 3, None])
+    customindexes.append([6, 16, None, 0, None, 1, 2, None])
+    #JSS
+    customindexes.append([5, 2, None, 0, None, 2, 1, None])
+    #Latin America Champ
+    customindexes.append([6, 5, None, 0, None, 2, 1, None])
+    #Super Series
+    customindexes.append([6, 7, None, 0, None, 2, 1, None])
+    #US Nationals
+    customindexes.append([6, 8, None, 0, None, 2, 1, None])
+    #GP Beijing 2015
+    customindexes.append([22, 48, 0, 1, None, 2, 4, None])
+    #GP Detriot 2015
+    customindexes.append([22, 55, 0, 1, None, 2, 4, None])
+
+    for customindex in customindexes:
+        if coverageloop == customindex[0] and eventloop == customindex[1]:
+            tableindex = customindex[2]
+            playerindex = customindex[3]
+            playercountryindex = customindex[4]
+            resultindex = customindex[5]
+            opponentindex = customindex[6]
+            opponentcountryindex = customindex[7]
+            break
+
+    customindexesbyround = []
+    #US Nationals round 6
+    customindexesbyround.append([6, 8, 6, 0, 2, None, 3, 5, None])
+    for customindex in customindexesbyround:
+        if coverageloop == customindex[0] and eventloop == customindex[1] and resultloop == customindex[2]:
+            tableindex = customindex[3]
+            playerindex = customindex[4]
+            playercountryindex = customindex[5]
+            resultindex = customindex[6]
+            opponentindex = customindex[7]
+            opponentcountryindex = customindex[8]
+            break
+
+    return tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex
 
 
 
@@ -382,7 +466,11 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         resultindex = index
                     elif re.search('opponent', headerrowindex.text, re.I):
                         opponentindex = index
-            print (tableindex, playerindex, resultindex, opponentindex)
+
+            #override the searched mapping with custom settings
+            tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex = customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex)
+            print(tableindex, playerindex, resultindex, opponentindex)
+
             tablelength = len(table)
             if endrow == 0:
                 endrow = tablelength
@@ -407,18 +495,18 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                 resultsrow[7] = round
                 #reading each coloumn in a row
                 tds = row.findAll('td')
-                if len(tds) == len (headerrowindexes):
-                    if tableindex != None:
+                if len(tds) == len(headerrowindexes):
+                    if tableindex != None and tableindex < len(tds):
                         resultsrow[8] = tds[tableindex].text
-                    if playerindex != None:
+                    if playerindex != None and playerindex < len(tds):
                         resultsrow[9] = tds[playerindex].text
-                    if playercountryindex != None:
+                    if playercountryindex != None and playercountryindex < len(tds):
                         resultsrow[11] = tds[playercountryindex].text
-                    if resultindex != None:
+                    if resultindex != None and resultindex < len(tds):
                         resultsrow[12] = tds[resultindex].text
-                    if opponentindex != None:
+                    if opponentindex != None and opponentindex < len(tds):
                         resultsrow[13] = tds[opponentindex].text
-                    if opponentcountryindex != None:
+                    if opponentcountryindex != None and opponentcountryindex < len(tds):
                         resultsrow[15] = tds[opponentcountryindex].text
                     #Fix Wizards Data!
                     customFixData(resultsrow, coverageloop, eventloop, resultloop, loop)
@@ -500,7 +588,7 @@ def getAllResults(coverageloop, eventloop, startround, endround, startrow, endro
         #if we never found a section where results were all organized, look for links with the word "results" on the page
         resultsurls = soup.findAll('a', text=re.compile('(result)|(results)', re.I))
         #only look at results specified
-        
+
     resultslength = len(resultsurls)
     if 0 < resultslength:
         if endround == 0:
@@ -548,7 +636,7 @@ def findDate (eventelem):
         if re.match('\s?\(([^)]+)\)?', str(eventelem.nextSibling)):
             #match parenthesis content at the begginning
             paren = re.match('\s?\(([^)]+)\)?', str(eventelem.nextSibling)).group(1)
-            
+
             #match date substring
             if re.search('([a-zA-Z]+\.?\s?(\d).*(\d))',paren):
                 date = re.search('([a-zA-Z]+\.?\s?(\d).*(\d))',paren).group(1)
@@ -567,7 +655,7 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
     htmlFile = urllib.request.urlopen(coverageURL)
     rawHTML = htmlFile.read()
     soup = BeautifulSoup(rawHTML, "lxml")
-    
+
     sections = soup.findAll('div', attrs={'class':'bean_block bean_block_html bean--wiz-content-html-block '})
     #Reverse the order, starting from oldest... so that we can be consistant about which loop is which year
     sections = list(reversed(sections))
@@ -604,7 +692,7 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
                     eventurlslist.append(eventurl)
                     eventnameslist.append(eventname)
                     eventdateslist.append(date)
-                    
+
         #2009 Season
         elif (loop == 15):
             eventtypes = section.findAll('p')
