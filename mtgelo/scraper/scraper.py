@@ -14,6 +14,15 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns = []
     #multi-pattern match
     multipatterns = []
+    # Fix messed up letters in names
+    patterns.append([6, 1, '�sterberg', 'Österberg'])
+    patterns.append([6, 1, 'Franz�n', 'Franzén'])
+    patterns.append([6, 1, 'L�hrs', 'Lührs'])
+    patterns.append([6, 1, 'J�bstl', 'Jöbstl'])
+    patterns.append([6, 1, 'Andr�', 'Andre'])
+    patterns.append([6, 1, 'St�phane', 'Stéphane'])
+    patterns.append([6, 1, 'H�berli', 'Häberli'])
+    patterns.append([6, 1, 'J�rg', 'Jürg'])
     #patterns for cov 7, event 4
     patterns.append([7, 4, '\(M[E]?[X]?$', '(MEX)'])
     patterns.append([7, 4, '\(C[H]?[I]?$', '(CHI)'])
@@ -156,8 +165,20 @@ def processName(resultsrow):
     garbagepat.append('\[$')
     #remove "VIP -"
     garbagepat.append('VIP -')
+    #remove "VIP_"
+    garbagepat.append('VIP_')
+    # remove "aaVIP"
+    garbagepat.append('aaVIP')
+    #remove "ZVIP", "ZZVIP"... "Zzvip
+    garbagepat.append('[zZ][zZ]?[zZ]?[vV][iI][pP]')
+    #Remove "VIP"
+    garbagepat.append('VIP')
+    #remove "vip "
+    garbagepat.append('vip ')
     #remove '[V]', which also represents VIP
     garbagepat.append('\[V\]')
+    #remove '- [numbers]'
+    garbagepat.append('\-\s[0-9]*')
     #remove '-' at the end
     garbagepat.append('\-$')
     #remove numbers from names
@@ -168,6 +189,11 @@ def processName(resultsrow):
     garbagepat.append('zzVIP')
     #remove "zzz"
     garbagepat.append('zzz')
+    #remove "aaa-"
+    garbagepat.append('aaa-')
+    #remove "AAA "
+    garbagepat.append('AAA\s')
+
 
     #here we want to remove all garbage patterns, so there is no break in the loop
     for pat in garbagepat:
@@ -368,6 +394,8 @@ def customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, pl
     customindexes.append([6, 7, None, 0, None, 2, 1, None])
     #US Nationals
     customindexes.append([6, 8, None, 0, None, 2, 1, None])
+    #Nagoya, Japan 2002
+    customindexes.append([8, 21, 0, 1, None, 2, 4, None])
     #GP Beijing 2015
     customindexes.append([22, 48, 0, 1, None, 2, 4, None])
     #GP Detriot 2015
