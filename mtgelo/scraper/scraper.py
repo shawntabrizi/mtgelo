@@ -2,6 +2,7 @@
 from bs4 import BeautifulSoup
 import re
 import daterangeparser
+import html
 
 from mtgelo.scraper.database import *
 
@@ -22,7 +23,18 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([6, 1, 'Andr�', 'Andre'])
     patterns.append([6, 1, 'St�phane', 'Stéphane'])
     patterns.append([6, 1, 'H�berli', 'Häberli'])
-    patterns.append([6, 1, 'J�rg', 'Jürg'])
+    multipatterns.append([6, 1, 'J�rg', 'Jürg'])
+    patterns.append([6, 1, 'Koskim�ki', 'Koskimäki'])
+    patterns.append([6, 1, '\?krbec', 'Skrbec'])
+    multipatterns.append([6, 1, '\?iga', 'Ziga'])
+    patterns.append([6, 1, 'Thor\?n', 'Thorén'])
+    patterns.append([6, 1, 'Thor�n', 'Thorén'])
+    patterns.append([6, 1, 'K�hn', 'Kühn'])
+    patterns.append([6, 1, 'Kr�ger', 'Kröger'])
+    multipatterns.append([6, 1, 'S�veges', 'Süveges'])
+    patterns.append([6, 1, 'Bj�rn', 'Bjørn'])
+    patterns.append([6, 1, 'J�rn', 'Jörn'])
+
     #patterns for cov 7, event 4
     patterns.append([7, 4, '\(M[E]?[X]?$', '(MEX)'])
     patterns.append([7, 4, '\(C[H]?[I]?$', '(CHI)'])
@@ -47,14 +59,24 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     # patterns for 8, 29
     patterns.append([8, 29, '\s[\d]*\,', ','])
     patterns.append([8, 29, '\(1', ''])
+    # patterns for 9, 17
+    patterns.append([9, 17, '\?sterberg', 'Österberg'])
+    #patterns for cov 10, event 24
+    patterns.append([10, 24, 'J\?g', 'Jörg'])
+    patterns.append([10, 24, 'Fr\?\?ic', 'Frédéric'])
+    patterns.append([10, 24, 'Jo\?', 'Joào'])
+    patterns.append([10, 24, 'G\?ther', 'Günther'])
     #patterns for cov 10, event 26
     patterns.append([10, 26, '(\(Aich)\s\[', '(Aichi) ['])
+    patterns.append([10, 26, 'Hasegawa\]', 'Hasegawa'])
     #patterns for cov 10, event 34
     patterns.append([10, 34, '\(Fukushima$', '(Fukushima)'])
     #patterns for cov 12, event 20
     patterns.append([12, 20, '\(Okayama\s\[', '(Okayama) ['])
     patterns.append([12, 20, '\(Hyo\s\[', '(Hyogo) ['])
     patterns.append([12, 20, '\(Osa\s\[', '(Osaka) ['])
+    # patterns for cov 13, event 24
+    patterns.append([13, 24, 'Jog', 'Jörg'])
     # patterns for cov 16, event 30
     patterns.append([15, 19, '\[TK\}', '[TK]'])
     #patterns for cov 16, event 30
@@ -70,6 +92,8 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([16, 30, '\(Aomori$', '(Aomori)'])
     patterns.append([16, 30, '\(Nagano$', '(Nagano)'])
     patterns.append([16, 30, '\(Kanagawa$', '(Kanagawa)'])
+    # 19 6
+    patterns.append([19, 6, 'Jo\?o', 'Joao'])
     # patterns for cov 19, event 12
     patterns.append([19, 12, '\(tokyo\s\[', '(Tokyo) ['])
     patterns.append([19, 12, '\(sait\s\[', '(Saitama) ['])
@@ -78,6 +102,12 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     patterns.append([19, 23, '\(Hiroshima$', '(Hiroshima)'])
     # patterns for cov 19, event 42
     patterns.append([19, 42, '\(Kanagawa$', '(Kanagawa)'])
+    #20 34
+    patterns.append([20, 34, 'Jo\?o', 'Joao'])
+    # 20 62 not 100% about this one... but it matches by last name.
+    patterns.append([20, 62, 'Joerg', 'Jörg'])
+    #21, 28
+    patterns.append([21, 28, '\(kokubunji-ci', '(kokubunji-city)'])
     # patterns for cov 22, event 50
     multipatterns.append([22, 50, '^aaa\sVIP', 'VIP'])
     patterns.append([22, 50, '\[V\s', '[V] '])
@@ -124,6 +154,21 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
             if re.search(pat[2], resultsrow[13]):
                 resultsrow[13] = re.sub(pat[2], pat[3], resultsrow[13])
 
+    #fix some data that is doubly html encoded
+    htmldecodelist = []
+    htmldecodelist.append([16, 21])
+    htmldecodelist.append([17, 24])
+    htmldecodelist.append([18, 8])
+    htmldecodelist.append([18, 9])
+    htmldecodelist.append([18, 13])
+    htmldecodelist.append([19, 22])
+
+    #decode HTML strings
+    for htmldecode in htmldecodelist:
+        if coverageid == htmldecode[0] and eventid == htmldecode[1]:
+            #not once... but twice... WHYYY
+            resultsrow[9] = html.unescape(html.unescape(resultsrow[9]))
+            resultsrow[13] = html.unescape(html.unescape(resultsrow[13]))
 
 def processTeamName(resultsrow):
     garbagepat = []
@@ -145,6 +190,8 @@ def processName(resultsrow):
     garbagepat.append('\[\!\]')
     #remove * too
     garbagepat.append('\*')
+    #remove '(DROPPED)'
+    garbagepat.append('\(DROPPED\)')
     #remove rank from player name '(123)'
     garbagepat.append('\(\d*\)')
     #remove TM from player name... really?
@@ -155,6 +202,8 @@ def processName(resultsrow):
     garbagepat.append('\(VIP\)')
     #remove (P)
     garbagepat.append('\(P\)')
+    # remove (See SK)
+    garbagepat.append('\(See SK\)')
     #remove '(' at end of string
     garbagepat.append('\($')
     #remove '[???]'
@@ -175,24 +224,37 @@ def processName(resultsrow):
     garbagepat.append('VIP')
     #remove "vip "
     garbagepat.append('vip ')
+    #remove '-[v]'
+    garbagepat.append('-\[[vV]\]')
     #remove '[V]', which also represents VIP
-    garbagepat.append('\[V\]')
+    garbagepat.append('\[[vV]\]')
     #remove '- [numbers]'
     garbagepat.append('\-\s[0-9]*')
     #remove '-' at the end
     garbagepat.append('\-$')
-    #remove numbers from names
-    garbagepat.append('[0-9]*')
     # remove "ZZZVIP"
     garbagepat.append('ZZZVIP')
     #remove "zzVIP"
     garbagepat.append('zzVIP')
-    #remove "zzz"
-    garbagepat.append('zzz')
     #remove "aaa-"
     garbagepat.append('aaa-')
     #remove "AAA "
     garbagepat.append('AAA\s')
+    #remove "ZZ "
+    garbagepat.append('ZZ\s')
+    # remove "Zzz_"
+    garbagepat.append('[zZ][zZ][zZ]_')
+    #remove "ZZSIS" and 'zzSIS'
+    garbagepat.append('[zZ][zZ]SIS')
+    #Remove "ZZZSB"
+    garbagepat.append('ZZZSB')
+    #remove "[zZ][zZ]3-"
+    garbagepat.append('[zZ][zZ]3-')
+    # remove "zzz"... "ZZZ"
+    garbagepat.append('[zZ][zZ][zZ]')
+    #remove numbers from names
+    garbagepat.append('[0-9]*')
+
 
 
     #here we want to remove all garbage patterns, so there is no break in the loop
@@ -227,6 +289,7 @@ def processName(resultsrow):
     countrypat.append('\(([gG]ifu)\)')
     countrypat.append('\(([gG]unma)\)')
     countrypat.append('\(([hH]yogo)\)')
+    countrypat.append('\(([hH]yougo)\)')
     countrypat.append('\(([hH]okkaido)\)')
     countrypat.append('\(([hH]iroshima)\)')
     countrypat.append('\(([hH]ino)\)')
@@ -239,6 +302,7 @@ def processName(resultsrow):
     countrypat.append('\(([kK]awasaki)\)')
     countrypat.append('\(([kK]yoto)\)')
     countrypat.append('\(([kK]anagawa)\)')
+    countrypat.append('\(([kK]okubunji-[cC]ity)\)')
     countrypat.append('\(([mM]iyagi)\)')
     countrypat.append('\(([mM]ie)\)')
     countrypat.append('\(([mM]achida)\)')
@@ -247,14 +311,17 @@ def processName(resultsrow):
     countrypat.append('\(([nN]ara)\)')
     countrypat.append('\(([oO]kayama)\)')
     countrypat.append('\(([oO]saka)\)')
+    countrypat.append('\(([oO]saka\-[cC]ity)\)')
     countrypat.append('\(([sS]endai)\)')
     countrypat.append('\(([sS]higa)\)')
     countrypat.append('\(([sS]aitama)\)')
     countrypat.append('\(([sS]apporo)\)')
     countrypat.append('\(([sS]hizuoka)\)')
+    countrypat.append('\(([sS]etagaya\-[kK]u)\)')
     countrypat.append('\(([tT]okyo)\)')
     countrypat.append('\(([tT]ochigi)\)')
     countrypat.append('\(([tT]ottori)\)')
+    countrypat.append('\(([tT]oyama)\)')
     countrypat.append('\(([tT]okushim[a]?)[\)]?')
     countrypat.append('\(([yY]amagata)[\)]?')
     #Also some United States Regions
@@ -263,19 +330,28 @@ def processName(resultsrow):
     countrypat.append('\[(NOCAL)\]?')
     countrypat.append('\[(NENG)\]?')
 
-    #here we only want to remove one such country pattern, so we break once we have found a matching pattern
+    #These are not countries, but most likely names, that can be used for uniqueness
+
+
+    #here we only want to remove one such country pattern, but we do not break...
+    #But some have multiple country patterns, so we append other country patters in addition to the patterms we found
+    #probably need to fix this up to make it more approachable
     #player
     for pat in countrypat:
         if re.search(pat, resultsrow[9]):
-            resultsrow[11] = re.search(pat, resultsrow[9]).group(1).upper()
+            if resultsrow[11] != '':
+                resultsrow[11] += ';'
+            resultsrow[11] += re.search(pat, resultsrow[9]).group(1).upper()
             resultsrow[9] = re.sub(pat, '', resultsrow[9])
-            break
+
     #opponent
     for pat in countrypat:
         if re.search(pat, resultsrow[13]):
-            resultsrow[15] = re.search(pat, resultsrow[13]).group(1).upper()
+            if resultsrow[15] != '':
+                resultsrow[15] += ';'
+            resultsrow[15] += re.search(pat, resultsrow[13]).group(1).upper()
             resultsrow[13] = re.sub(pat, '', resultsrow[13])
-            break
+
 
     #get first name and last name
     namepat = []
@@ -545,9 +621,9 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         processTeamName(resultsrow)
                         resultsrow[10] = 'TEAM EVENT'
                         resultsrow[14] = 'TEAM EVENT'
-                    #process country to only have letters
-                    resultsrow[11] = re.sub('[^a-zA-Z]','',resultsrow[11])
-                    resultsrow[15] = re.sub('[^a-zA-Z]','',resultsrow[15])
+                    #process country to only have letters and semicolon
+                    resultsrow[11] = re.sub('[^a-zA-Z\;]','',resultsrow[11])
+                    resultsrow[15] = re.sub('[^a-zA-Z\;]','',resultsrow[15])
                     #process the result value
                     processResult(resultsrow)
                     #remove beginning and ending whitespace
