@@ -1,10 +1,14 @@
 from mtgelo.scraper.database import *
+from mtgelo.scraper.unicode_parser import *
 import trueskill
+import re
+
 
 def testrating():
     conn = connect_db()
     c = conn.cursor()
-    create_playerranking()
+    #this will delete DB data, and recreate it...
+    #create_playerranking()
 
     c.execute('select * from playerHistory order by coverageid asc, eventid desc, round asc')
 
@@ -12,34 +16,40 @@ def testrating():
 
     playerdata = {}
     for event in eventdata:
-        print(event)
+        #print(event)
         if event[10] != 'TEAM EVENT' or event[14] != 'TEAM EVENT':
-            name = event[9].lower() + ' ' + event[10].lower()
+            name = event[9] + ' ' + event[10]
+            name = text_to_id(name)
+
             if name not in playerdata:
                 playerdata[name] = [trueskill.Rating(), 0]
 
-            opponenet_name = event[13].lower() + ' ' + event[14].lower()
-            if opponenet_name not in playerdata:
-                playerdata[opponenet_name] = [trueskill.Rating(), 0]
+            opponent_name = event[13] + ' ' + event[14]
+            opponent_name = text_to_id(opponent_name)
+            if opponent_name not in playerdata:
+                playerdata[opponent_name] = [trueskill.Rating(), 0]
 
     print("Player Data Length: ", len(playerdata))
 
     for event in eventdata:
         if event[10] != 'TEAM EVENT' or event[14] != 'TEAM EVENT':
-            player_name = event[9].lower() + ' ' + event[10].lower()
-            opponenet_name = event[13].lower() + ' ' + event[14].lower()
+            player_name = event[9] + ' ' + event[10]
+            opponent_name = event[13] + ' ' + event[14]
 
-            if player_name in playerdata and opponenet_name in playerdata:
+            player_name = text_to_id(player_name)
+            opponent_name = text_to_id(opponent_name)
+
+            if player_name in playerdata and opponent_name in playerdata:
                 player_rating = playerdata[player_name][0]
-                opponent_rating = playerdata[opponenet_name][0]
+                opponent_rating = playerdata[opponent_name][0]
                 playerdata[player_name][1] += 1
-                playerdata[opponenet_name][1] += 1
+                playerdata[opponent_name][1] += 1
                 if event[12] == "Won":
-                    playerdata[player_name][0], playerdata[opponenet_name][0] = trueskill.rate_1vs1(player_rating, opponent_rating)
+                    playerdata[player_name][0], playerdata[opponent_name][0] = trueskill.rate_1vs1(player_rating, opponent_rating)
                 elif event[12] == "Lost":
-                    playerdata[opponenet_name][0], playerdata[player_name][0] = trueskill.rate_1vs1(opponent_rating, player_rating)
+                    playerdata[opponent_name][0], playerdata[player_name][0] = trueskill.rate_1vs1(opponent_rating, player_rating)
                 elif event[12] == "Drew":
-                    playerdata[player_name][0], playerdata[opponenet_name][0] = trueskill.rate_1vs1(player_rating, opponent_rating, drawn=True)
+                    playerdata[player_name][0], playerdata[opponent_name][0] = trueskill.rate_1vs1(player_rating, opponent_rating, drawn=True)
     print(playerdata)
 
     test = reversed(sorted(playerdata, key=playerdata.get))
