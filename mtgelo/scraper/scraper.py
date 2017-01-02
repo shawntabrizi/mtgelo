@@ -6,9 +6,10 @@ import html
 
 from mtgelo.scraper.database import *
 from mtgelo.scraper.custom_fixer import *
+from mtgelo.scraper.unicode_parser import *
 
 #global variable for db table size
-dblength = 19
+dblength = 20
 
 
 
@@ -90,50 +91,6 @@ def processResult(resultsrow):
                         resultsrow[13] = ''
                         resultsrow[14] = 'BYE'
 
-def customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex):
-    #try and fix custom tables that are hard to detect by header title
-    customindexes = []
-    customindexes.append([6, 15, 0, 1, None, 2, 3, None])
-    customindexes.append([6, 16, None, 0, None, 1, 2, None])
-    #JSS
-    customindexes.append([5, 2, None, 0, None, 2, 1, None])
-    #Latin America Champ
-    customindexes.append([6, 5, None, 0, None, 2, 1, None])
-    #Super Series
-    customindexes.append([6, 7, None, 0, None, 2, 1, None])
-    #US Nationals
-    customindexes.append([6, 8, None, 0, None, 2, 1, None])
-    #Nagoya, Japan 2002
-    customindexes.append([8, 21, 0, 1, None, 2, 4, None])
-    #GP Beijing 2015
-    customindexes.append([22, 48, 0, 1, None, 2, 4, None])
-    #GP Detriot 2015
-    customindexes.append([22, 55, 0, 1, None, 2, 4, None])
-
-    for customindex in customindexes:
-        if coverageloop == customindex[0] and eventloop == customindex[1]:
-            tableindex = customindex[2]
-            playerindex = customindex[3]
-            playercountryindex = customindex[4]
-            resultindex = customindex[5]
-            opponentindex = customindex[6]
-            opponentcountryindex = customindex[7]
-            break
-
-    customindexesbyround = []
-    #US Nationals round 6
-    customindexesbyround.append([6, 8, 6, 0, 2, None, 3, 5, None])
-    for customindex in customindexesbyround:
-        if coverageloop == customindex[0] and eventloop == customindex[1] and resultloop == customindex[2]:
-            tableindex = customindex[3]
-            playerindex = customindex[4]
-            playercountryindex = customindex[5]
-            resultindex = customindex[6]
-            opponentindex = customindex[7]
-            opponentcountryindex = customindex[8]
-            break
-
-    return tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex
 
 
 
@@ -205,7 +162,7 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         opponentindex = index
 
             #override the searched mapping with custom settings
-            tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex = customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex)
+            tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex, isplayer = customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex, isplayer)
             print(tableindex, playerindex, resultindex, opponentindex)
 
             tablelength = len(table)
@@ -252,8 +209,7 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                         processName(resultsrow)
                     else:
                         processTeamName(resultsrow)
-                        resultsrow[10] = 'TEAM EVENT'
-                        resultsrow[14] = 'TEAM EVENT'
+
                     #process country to only have letters and semicolon
                     resultsrow[11] = re.sub('[^a-zA-Z\;]','',resultsrow[11])
                     resultsrow[15] = re.sub('[^a-zA-Z\;]','',resultsrow[15])
@@ -261,6 +217,7 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                     processResult(resultsrow)
                     #remove beginning and ending whitespace
                     #also convert to INT if possible
+                    #also remove all accents
                     striploop = 0
                     while (striploop < len(resultsrow)):
                         #check that it is not an int
@@ -271,6 +228,7 @@ def saveResults(coverageloop, eventloop, resultloop, startrow, endrow, resulturl
                             except:
                                 #or strip the string
                                 resultsrow[striploop] = resultsrow[striploop].strip()
+                                resultsrow[striploop] = strip_accents(resultsrow[striploop].lower())
                         striploop = striploop + 1
                     #write to DB
                     playerHistoryToDB(resultsrow)
@@ -536,8 +494,8 @@ def getAllCoverageEvents(startcoverage=0,endcoverage=0,startevent=0,endevent=0,s
         eventloop = startevent
         while (eventloop < eventurlslength and eventloop < endeventloop):
             eventurl = eventurlslist[eventloop]
-            eventtype = eventtypeslist[eventloop]
-            eventname = eventnameslist[eventloop]
+            eventtype = strip_accents(eventtypeslist[eventloop].lower())
+            eventname = strip_accents(eventnameslist[eventloop].lower())
             date = eventdateslist[eventloop]
             getAllResults(loop, eventloop, startround,endround, startrow, endrow, eventurl, eventtype, eventname, date)
             eventloop = eventloop + 1

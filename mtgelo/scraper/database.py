@@ -1,5 +1,6 @@
 ﻿import sqlite3
 import os
+from mtgelo.scraper.unicode_parser import *
 
 __file__ = "C:\\Users\shawn\PycharmProjects\mtgelo\mtgelo\scraper\database.py"
 
@@ -10,8 +11,8 @@ def reset_db():
 
 
 def connect_db():
-    dir = os.path.dirname(__file__)
-    filename = os.path.join(dir, '..\db\playerhistory.db')
+    file_dir = os.path.dirname(__file__)
+    filename = os.path.join(file_dir, '..\db\playerhistory.db')
     return sqlite3.connect(filename)
 
 
@@ -46,6 +47,7 @@ def create_db():
                                 won text,
                                 lost text,
                                 drew text,
+                                modified text,
                                 constraint unique_row unique (coverageid,eventid,roundid,rowid)
                                 )''')
     conn.close()
@@ -60,7 +62,8 @@ def create_playerranking():
                                 rating NUMERIC ,
                                 sigma NUMERIC,
                                 count NUMERIC,
-                                mtgelo NUMERIC
+                                mtgelo NUMERIC,
+                                tsrating NUMERIC
                                 )''')
     conn.close()
 
@@ -69,24 +72,32 @@ def playerHistoryToDB(playerHistory):
     #print playerHistory
     conn = connect_db()
     c = conn.cursor()
-    print ("ADDING", playerHistory)
-    if (len(playerHistory) != 19):
-        print ("BAD ITEM!!!!")
+    print("ADDING", playerHistory)
+    if (len(playerHistory) != 20):
+        print("BAD ITEM!!!!")
     else:
-        c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
+        c.execute('insert or replace into playerHistory values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)', playerHistory)
     conn.commit()
     conn.close()
 
 
-def playerRankToDB(playerRank):
+def playerRankToDB(player_ratings):
     # print playerHistory
     conn = connect_db()
     c = conn.cursor()
-    print(len(playerRank), "ADDING", playerRank)
-    if len(playerRank) != 5:
-        print("BAD ITEM!!!!")
-    else:
-        c.execute('insert into playerRank values (?,?,?,?,?)',
-                  playerRank)
+    print("Adding")
+    c.executemany('insert into playerRank values (?,?,?,?,?,?)',
+                  player_ratings)
+    conn.commit()
+    conn.close()
+
+
+def dbNormalizeNames():
+    conn = connect_db()
+    c = conn.cursor()
+    c.execute('select * FROM playerHistory')
+    db = c.fetchall()
+    strip_db = [[strip_accents(item.lower()) if isinstance(item, str) else item for item in row] for row in db]
+    c.executemany("""REPLACE into playerHistory VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", strip_db)
     conn.commit()
     conn.close()

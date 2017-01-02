@@ -2,9 +2,13 @@ from mtgelo.scraper.database import *
 from mtgelo.scraper.unicode_parser import *
 import unicodedata
 import difflib
+import sys
+import csv
+
+compare_ratio = .75
 
 #This is the brute force solution...
-#Trying to match every name with every other name...
+#Trying to match every name with every other name... where the first two letters match
 #Way too slow...
 def namematcher():
     conn = connect_db()
@@ -55,7 +59,7 @@ def lastnamematch():
     #The set ensures that only unique First Names get added
     #End result is an object where we can see all unique first names for a particular last name
 
-    for event in eventdata[10000:]:
+    for event in eventdata:
         #ignore team events for this exercise
         if event[1] != 'TEAM EVENT' or event[3] != 'TEAM EVENT':
             #normalize people's first and last names
@@ -105,12 +109,16 @@ def lastnamematch():
                     #compare the two names
                     compare = difflib.SequenceMatcher(None, first_name_list[i], first_name_list[j])
                     #This ratio can be adjusted for more strict and less strict comparison
-                    if compare.ratio() > .75:
+                    if compare.ratio() > compare_ratio:
                         #If the comparison is close, then add new subarray with the relevant values
                         matchlist.append([key, first_name_list[i], first_name_list[j], compare.ratio()])
                     j += 1
                 i += 1
     print(len(matchlist))
+
+    with open("output.csv", "w") as f:
+        writer = csv.writer(f)
+        writer.writerows(matchlist)
 
     #Finally, we want to create "people", where there are multiple matches...
     #For example, if A matches B, and B matches C... then [A,B,C] is probably all the same name for 1 person
@@ -181,7 +189,7 @@ def firstnamematch():
     #The set ensures that only unique last Names get added
     #End result is an object where we can see all unique last names for a particular first name
 
-    for event in eventdata[10000:]:
+    for event in eventdata:
         #ignore team events for this exercise
         if event[1] != 'TEAM EVENT' or event[3] != 'TEAM EVENT':
             #normalize people's last and first names
@@ -231,7 +239,7 @@ def firstnamematch():
                     #compare the two names
                     compare = difflib.SequenceMatcher(None, last_name_list[i], last_name_list[j])
                     #This ratio can be adjusted for more strict and less strict comparison
-                    if compare.ratio() > .75:
+                    if compare.ratio() > compare_ratio:
                         #If the comparison is close, then add new subarray with the relevant values
                         matchlist.append([key, last_name_list[i], last_name_list[j], compare.ratio()])
                     j += 1
@@ -284,3 +292,31 @@ def firstnamematch():
             extended_match[first_name].append(set([last_name_1, last_name_2]))
 
     return extended_match
+
+
+def create_update_query_last_name():
+    #first get all the suggested changes
+    changes = lastnamematch()
+    #We will create a text file with all the DB updates
+    f = open('update_query_last_name.txt', 'w')
+
+    #create the changes as lines of SQLite queries
+    for key, value in changes.items():
+        #Key is last name, value is an array of sets of first names
+        for group in value:
+            line_string = ''
+            #find the longest name in the set, which we assume is the correct name
+            max_name = max(group, key=len)
+            #remove this name from the set of data we will change, since it is already correct
+            group.remove(max_name)
+            #beggining of the query updates the table, and sets the first name to the name we want, where last name
+            #matches the name we are looking for
+            line_string = 'update playerHistory set playerfirstname = "' + max_name + '" where playerlastname = "' + key + '" and ('
+            #and where the existing first name is one of the names in the group
+            for name in group:
+                line_string += 'playerfirstname = "' + name + '" or '
+            #remove last 4 characters which should be ' or '
+            line_string = line_string[:-4]
+            line_string += ')\n'
+            f.write(line_string)
+    f.close()

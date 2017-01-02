@@ -1,3 +1,7 @@
+import re
+import html
+from mtgelo.scraper.unicode_parser import *
+
 def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
     #single pattern match
     patterns = []
@@ -158,6 +162,7 @@ def customFixData(resultsrow, coverageid, eventid, roundid, rowid):
             resultsrow[9] = html.unescape(html.unescape(resultsrow[9]))
             resultsrow[13] = html.unescape(html.unescape(resultsrow[13]))
 
+
 def processTeamName(resultsrow):
     garbagepat = []
     #remove '*Amateur*' from team name, and substrings of it...
@@ -171,6 +176,18 @@ def processTeamName(resultsrow):
             resultsrow[9] = re.sub(pat, '', resultsrow[9])
         if re.search(pat, resultsrow[13]):
             resultsrow[13] = re.sub(pat, '', resultsrow[13])
+
+    resultsrow[10] = 'TEAM EVENT'
+    resultsrow[14] = 'TEAM EVENT'
+
+    if re.search('[\W]\sbye\s[\W]', resultsrow[13], re.I):
+        resultsrow[13] = ''
+        resultsrow[14] = 'BYE'
+
+    if re.search('[\W]\sawarded bye\s[\W]', resultsrow[13], re.I):
+        resultsrow[13] = 'Awarded'
+        resultsrow[14] = u'BYE'
+
 
 def processName(resultsrow):
     garbagepat = []
@@ -366,3 +383,65 @@ def processName(resultsrow):
     if re.match('bye', resultsrow[13], re.I) and re.match('awarded', resultsrow[14], re.I):
         resultsrow[13] = 'Awarded'
         resultsrow[14] = u'BYE'
+
+    #remove all accents from the names, then put it lowercase
+    resultsrow[9] = strip_accents(resultsrow[9].lower())
+    resultsrow[10] = strip_accents(resultsrow[10].lower())
+    resultsrow[13] = strip_accents(resultsrow[13].lower())
+    resultsrow[14] = strip_accents(resultsrow[14].lower())
+
+def customtable(coverageloop, eventloop, resultloop, tableindex, playerindex, playercountryindex, resultindex,
+                opponentindex, opponentcountryindex, isplayer):
+    # try and fix custom tables that are hard to detect by header title
+    customindexes = []
+    customindexes.append([6, 15, 0, 1, None, 2, 3, None])
+    customindexes.append([6, 16, None, 0, None, 1, 2, None])
+    # JSS
+    customindexes.append([5, 2, None, 0, None, 2, 1, None])
+    # Latin America Champ
+    customindexes.append([6, 5, None, 0, None, 2, 1, None])
+    # Super Series
+    customindexes.append([6, 7, None, 0, None, 2, 1, None])
+    # US Nationals
+    customindexes.append([6, 8, None, 0, None, 2, 1, None])
+    # Nagoya, Japan 2002
+    customindexes.append([8, 21, 0, 1, None, 2, 4, None])
+    # GP Beijing 2015
+    customindexes.append([22, 48, 0, 1, None, 2, 4, None])
+    # GP Detriot 2015
+    customindexes.append([22, 55, 0, 1, None, 2, 4, None])
+
+    for customindex in customindexes:
+        if coverageloop == customindex[0] and eventloop == customindex[1]:
+            tableindex = customindex[2]
+            playerindex = customindex[3]
+            playercountryindex = customindex[4]
+            resultindex = customindex[5]
+            opponentindex = customindex[6]
+            opponentcountryindex = customindex[7]
+            break
+
+    customindexesbyround = []
+    # US Nationals round 6
+    customindexesbyround.append([6, 8, 6, 0, 2, None, 3, 5, None])
+    for customindex in customindexesbyround:
+        if coverageloop == customindex[0] and eventloop == customindex[1] and resultloop == customindex[2]:
+            tableindex = customindex[3]
+            playerindex = customindex[4]
+            playercountryindex = customindex[5]
+            resultindex = customindex[6]
+            opponentindex = customindex[7]
+            opponentcountryindex = customindex[8]
+            break
+
+    #change a 'player' event, to a team event, or vice-versa
+    #True means it is a player, False means it is a team event
+    teamevent = []
+    teamevent.append([6, 14, False])
+    teamevent.append([6, 13, False])
+
+    for event in teamevent:
+        if coverageloop == event[0] and eventloop == event[1]:
+            isplayer = event[2]
+
+    return tableindex, playerindex, playercountryindex, resultindex, opponentindex, opponentcountryindex, isplayer
